@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ss2socks.iml" filepath="$PROJECT_DIR$/.idea/modules/ss2socks.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ss2socks_main.iml" filepath="$PROJECT_DIR$/.idea/modules/ss2socks_main.iml" group="ss2socks" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ss2socks_test.iml" filepath="$PROJECT_DIR$/.idea/modules/ss2socks_test.iml" group="ss2socks" />
+    </modules>
+  </component>
+</project>
