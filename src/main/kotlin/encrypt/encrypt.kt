@@ -14,14 +14,20 @@ private interface GeneralCipher {
     fun decrypt(cipherText: ByteArray): ByteArray
 }
 
-class AES256CFB(key: String, var iv: ByteArray? = null): GeneralCipher {
+fun password2key(passwd: String): ByteArray {
+    val keyGen = MessageDigest.getInstance("MD5")
+    keyGen.update(passwd.toByteArray())
+    var encodeKey = keyGen.digest()
+    keyGen.update(encodeKey + passwd.toByteArray())
+    encodeKey += keyGen.digest()
+    return encodeKey
+}
+
+class AES256CFB(key: ByteArray, var iv: ByteArray? = null): GeneralCipher {
     val cipher: Cipher
 
     init {
-        val keyGen = MessageDigest.getInstance("SHA-256")
-        keyGen.update(key.toByteArray())
-        val encodeKey = keyGen.digest()
-        val skey = SecretKeySpec(encodeKey, "AES")
+        val skey = SecretKeySpec(key, "AES")
 
         cipher = Cipher.getInstance("AES/CFB/NoPadding")
 
@@ -50,10 +56,12 @@ fun main(args: Array<String>) {
     val plainText = "holo".toByteArray()
     val plainText2 = "sherlock".toByteArray()
 
-    val en = AES256CFB("qlx")
+    val key = password2key("qlx")
+
+    val en = AES256CFB(key)
     val iv = en.getIVorNonce()!!
 
-    val de = AES256CFB("qlx", iv)
+    val de = AES256CFB(key, iv)
     val cipherText = en.encrypt(plainText)
     val cipherText2 = en.encrypt(plainText2)
     println("plain text: ${String(plainText)}")
