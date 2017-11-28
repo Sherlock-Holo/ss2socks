@@ -23,7 +23,7 @@ fun password2key(passwd: String): ByteArray {
     return encodeKey
 }
 
-class AES256CFB(key: ByteArray, var iv: ByteArray? = null): GeneralCipher {
+class AES256CFB(key: ByteArray, private var iv: ByteArray? = null): GeneralCipher {
     val cipher: Cipher
 
     init {
