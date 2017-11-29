@@ -2,9 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="93e37267-8258-40ff-a3dd-7f7389ac5516" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/main/kotlin/config/config.kt" afterPath="$PROJECT_DIR$/src/main/kotlin/config/config.kt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/main/kotlin/config/config.yaml" afterPath="$PROJECT_DIR$/src/main/kotlin/config/config.yaml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/main/kotlin/core/core.kt" afterPath="$PROJECT_DIR$/src/main/kotlin/core/core.kt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <ignored path="$PROJECT_DIR$/.gradle/" />
@@ -51,8 +50,8 @@
       <file leaf-file-name="config.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/kotlin/config/config.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="294">
-              <caret line="28" column="167" lean-forward="true" selection-start-line="28" selection-start-column="167" selection-end-line="28" selection-end-column="167" />
+            <state relative-caret-position="630">
+              <caret line="35" column="29" lean-forward="true" selection-start-line="35" selection-start-column="29" selection-end-line="35" selection-end-column="29" />
               <folding>
                 <element signature="e#16#97#0" expanded="true" />
               </folding>
@@ -60,17 +59,17 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="config.yaml" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/kotlin/config/config.yaml">
+      <file leaf-file-name=".gitignore" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/.gitignore">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="72">
-              <caret line="4" column="14" lean-forward="false" selection-start-line="4" selection-start-column="14" selection-end-line="4" selection-end-column="14" />
+            <state relative-caret-position="121">
+              <caret line="14" column="16" lean-forward="false" selection-start-line="14" selection-start-column="16" selection-end-line="14" selection-end-column="16" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="core.kt" pinned="false" current-in-tab="true">
+      <file leaf-file-name="core.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/kotlin/core/core.kt">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="78">
@@ -447,6 +446,7 @@
         <option value="$PROJECT_DIR$/src/main/kotlin/config/config.yaml" />
         <option value="$PROJECT_DIR$/src/main/kotlin/config/config.kt" />
         <option value="$PROJECT_DIR$/src/main/kotlin/core/core.kt" />
+        <option value="$PROJECT_DIR$/.gitignore" />
       </list>
     </option>
   </component>
@@ -534,6 +534,7 @@
     <property name="settings.editor.selected.configurable" value="reference.settingsdialog.project.gradle" />
     <property name="last_opened_file_path" value="/usr/bin/visualvm" />
     <property name="android.sdk.path" value="$USER_HOME$/Android/Sdk" />
+    <property name="add_unversioned_files" value="true" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -547,7 +548,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Kotlin.encrypt.EncryptKt">
+  <component name="RunManager" selected="Kotlin.config.ConfigKt">
     <configuration default="true" type="Applet" factoryName="Applet">
       <option name="HTML_USED" value="false" />
       <option name="WIDTH" value="400" />
@@ -679,8 +680,8 @@
     </list>
     <recent_temporary>
       <list size="3">
-        <item index="0" class="java.lang.String" itemvalue="Kotlin.encrypt.EncryptKt" />
-        <item index="1" class="java.lang.String" itemvalue="Kotlin.config.ConfigKt" />
+        <item index="0" class="java.lang.String" itemvalue="Kotlin.config.ConfigKt" />
+        <item index="1" class="java.lang.String" itemvalue="Kotlin.encrypt.EncryptKt" />
         <item index="2" class="java.lang.String" itemvalue="Application.test" />
       </list>
     </recent_temporary>
@@ -842,16 +843,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/kotlin/config/config.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="294">
-          <caret line="28" column="167" lean-forward="true" selection-start-line="28" selection-start-column="167" selection-end-line="28" selection-end-column="167" />
-          <folding>
-            <element signature="e#16#97#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/kotlin/core/core.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="78">
@@ -859,6 +850,24 @@
           <folding>
             <element signature="e#14#607#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/kotlin/config/config.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="630">
+          <caret line="35" column="29" lean-forward="true" selection-start-line="35" selection-start-column="29" selection-end-line="35" selection-end-column="29" />
+          <folding>
+            <element signature="e#16#97#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="121">
+          <caret line="14" column="16" lean-forward="false" selection-start-line="14" selection-start-column="16" selection-end-line="14" selection-end-column="16" />
+          <folding />
         </state>
       </provider>
     </entry>
