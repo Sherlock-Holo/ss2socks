@@ -1,5 +1,6 @@
 package encrypt
 
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -12,6 +13,10 @@ private interface GeneralCipher {
     fun encrypt(plainText: ByteArray): ByteArray
 
     fun decrypt(cipherText: ByteArray): ByteArray
+
+    fun bufferEncrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer)
+
+    fun bufferDecrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer)
 }
 
 fun password2key(passwd: String): ByteArray {
@@ -50,6 +55,14 @@ class AES256CFB(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
     override fun getIVorNonce(): ByteArray? {
         return iv
     }
+
+    override fun bufferEncrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer) {
+        cipher.doFinal(plainBuffer, cipherBuffer)
+    }
+
+    override fun bufferDecrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer) {
+        cipher.doFinal(cipherBuffer, plainBuffer)
+    }
 }
 
 fun main(args: Array<String>) {
@@ -68,7 +81,19 @@ fun main(args: Array<String>) {
     val newText = de.decrypt(cipherText)
     val newText2 = de.decrypt(cipherText2)
     println("new text: ${String(newText)}")
-    println("new text2: ${String(newText2)}")
-    println("check: ${newText.contentEquals(plainText)}")
-    println("check: ${newText2.contentEquals(plainText2)}")
+
+    val plainBuffer = ByteBuffer.allocate(100)
+    val cipherBuffer = ByteBuffer.allocate(100)
+    plainBuffer.put(plainText2)
+    plainBuffer.flip()
+    en.bufferEncrypt(plainBuffer, cipherBuffer)
+    cipherBuffer.flip()
+    plainBuffer.clear()
+    de.bufferDecrypt(cipherBuffer, plainBuffer)
+    plainBuffer.flip()
+    println(String(byteArrayOf(plainBuffer.get())))
+    println(String(byteArrayOf(plainBuffer.get())))
+    println(String(byteArrayOf(plainBuffer.get())))
+    println(String(byteArrayOf(plainBuffer.get())))
+
 }
