@@ -76,10 +76,10 @@ fun main(args: Array<String>) {
 
     val de = AES256CFB(key, iv)
     val cipherText = en.encrypt(plainText)
-    val cipherText2 = en.encrypt(plainText2)
+//    val cipherText2 = en.encrypt(plainText2)
     println("plain text: ${String(plainText)}")
     val newText = de.decrypt(cipherText)
-    val newText2 = de.decrypt(cipherText2)
+//    val newText2 = de.decrypt(cipherText2)
     println("new text: ${String(newText)}")
 
     val plainBuffer = ByteBuffer.allocate(100)
