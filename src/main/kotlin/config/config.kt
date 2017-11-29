@@ -4,7 +4,7 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import java.io.FileInputStream
 
-data class ServerConfig(val ssAddr: String, val ssPort: Int, val backEndAddr: String, val backEndPort: Int)
+data class ServerConfig(val ssAddr: String, val ssPort: Int, val backEndAddr: String, val backEndPort: Int, val password: String)
 
 class config {
     private val yamlConfig: Map<String, Any>
@@ -26,7 +26,7 @@ class config {
     }
 
     fun getConfig(): ServerConfig {
-        return ServerConfig(yamlConfig["ssAddr"] as String, yamlConfig["ssPort"] as Int, yamlConfig["backEndAddr"] as String, yamlConfig["backEndPort"] as Int)
+        return ServerConfig(yamlConfig["ssAddr"] as String, yamlConfig["ssPort"] as Int, yamlConfig["backEndAddr"] as String, yamlConfig["backEndPort"] as Int, yamlConfig["password"] as String)
     }
 }
 

@@ -2,3 +2,4 @@ ssAddr: 0.0.0.0
 ssPort: 3389
 backEndAddr: 0.0.0.0
 backEndPort: 3390
+password: holo
