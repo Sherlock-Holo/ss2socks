@@ -1,5 +1,6 @@
 package core
 
+import config.config
 import encrypt.AES256CFB
 import encrypt.password2key
 import kotlinx.coroutines.experimental.async
@@ -7,10 +8,13 @@ import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.nio.aConnect
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
+import kotlinx.coroutines.experimental.runBlocking
+import java.io.File
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
+import kotlin.system.exitProcess
 
 private fun makeSendPort(i: Int): ByteArray {
     val binaryNumber = StringBuffer(Integer.toBinaryString(i))
@@ -309,6 +313,32 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
                     backEndSocketChannel.close()
                 }
             }
-        } catch (e: Throwable) {}
+        } catch (e: Throwable) {
+            client.close()
+            backEndSocketChannel.close()
+            TODO("log this error")
+        }
+    }
+}
+
+fun main(args: Array<String>) = runBlocking<Unit> {
+    if (args.size != 2) {
+        if (args[0] != "-c") {
+            println("error args")
+            exitProcess(1)
+        }
+    }
+
+    val configFile = File(args[1])
+    if (!configFile.exists()) {
+        println("config file not exist")
+        exitProcess(1)
+    }
+
+    val ss2socksConfig = config(configFile).getConfig()
+
+    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
+    async {
+        core.runForever()
     }
 }
