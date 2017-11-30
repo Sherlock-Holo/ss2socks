@@ -20,9 +20,10 @@ private interface GeneralCipher {
 }
 
 fun password2key(passwd: String): ByteArray {
-    val keyGen = MessageDigest.getInstance("MD5")
+    var keyGen = MessageDigest.getInstance("MD5")
     keyGen.update(passwd.toByteArray())
     var encodeKey = keyGen.digest()
+    keyGen = MessageDigest.getInstance("MD5")
     keyGen.update(encodeKey + passwd.toByteArray())
     encodeKey += keyGen.digest()
     return encodeKey
