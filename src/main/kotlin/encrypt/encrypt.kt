@@ -14,9 +14,9 @@ private interface GeneralCipher {
 
     fun decrypt(cipherText: ByteArray): ByteArray
 
-    fun bufferEncrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer)
+    fun encrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer)
 
-    fun bufferDecrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer)
+    fun decrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer)
 }
 
 fun password2key(passwd: String): ByteArray {
@@ -57,11 +57,11 @@ class AES256CFB(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
         return iv
     }
 
-    override fun bufferEncrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer) {
+    override fun encrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer) {
         cipher.doFinal(plainBuffer, cipherBuffer)
     }
 
-    override fun bufferDecrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer) {
+    override fun decrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer) {
         cipher.doFinal(cipherBuffer, plainBuffer)
     }
 }
@@ -87,10 +87,10 @@ fun main(args: Array<String>) {
     val cipherBuffer = ByteBuffer.allocate(100)
     plainBuffer.put(plainText2)
     plainBuffer.flip()
-    en.bufferEncrypt(plainBuffer, cipherBuffer)
+    en.encrypt(plainBuffer, cipherBuffer)
     cipherBuffer.flip()
     plainBuffer.clear()
-    de.bufferDecrypt(cipherBuffer, plainBuffer)
+    de.decrypt(cipherBuffer, plainBuffer)
     plainBuffer.flip()
     println(String(byteArrayOf(plainBuffer.get())))
     println(String(byteArrayOf(plainBuffer.get())))
