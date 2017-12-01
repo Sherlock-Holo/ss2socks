@@ -14,7 +14,10 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
+import java.util.logging.Logger
 import kotlin.system.exitProcess
+
+val logger = Logger.getLogger("ss2socks logger")
 
 private fun makeSendPort(i: Int): ByteArray {
     val binaryNumber = StringBuffer(Integer.toBinaryString(i))
@@ -41,6 +44,9 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
     suspend fun runForever() {
         while (true) {
             val client = serverChannel.aAccept()
+            async {
+                handle(client)
+            }
         }
     }
 
@@ -63,6 +69,12 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
             cipherReadBuffer.get(readIv)
             cipherReadBuffer.compact()
 
+            val IVStringBuffer = StringBuffer()
+            for (i in 0 until readIv.size) {
+                IVStringBuffer.append(Integer.toBinaryString(readIv[i].toInt()))
+            }
+            logger.info(IVStringBuffer.toString())
+
             val readCipher = AES256CFB(key, readIv)
 
             var rawatyp = byteArrayOf(cipherReadBuffer.get())
@@ -71,6 +83,8 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
             var addrLen = 0
             var addr = ByteArray(4)
             var port = ByteArray(2)
+
+            logger.info("atyp: ${atyp}")
 
             when (atyp) {
                 1 -> {
@@ -130,6 +144,8 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
                     TODO("other atyp handle")
                 }
             }
+
+            logger.info("addr: $addr, port: $port")
 
             // ready to relay
             cipherReadBuffer.compact()
@@ -271,7 +287,7 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
                         }
 
                         cipherReadBuffer.flip()
-                        readCipher.bufferDecrypt(cipherReadBuffer, plainWriteBuffer)
+                        readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
                         cipherReadBuffer.compact()
                         plainWriteBuffer.flip()
                         backEndSocketChannel.aWrite(plainWriteBuffer)
@@ -300,7 +316,7 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
                         }
 
                         plainReadBuffer.flip()
-                        writeCipher.bufferEncrypt(plainReadBuffer, cipherWriteBuffer)
+                        writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
                         plainReadBuffer.compact()
                         cipherWriteBuffer.flip()
                         client.aWrite(cipherWriteBuffer)
@@ -316,29 +332,31 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
-            TODO("log this error")
+            logger.warning(e.message)
         }
     }
 }
 
 fun main(args: Array<String>) = runBlocking<Unit> {
-    if (args.size != 2) {
-        if (args[0] != "-c") {
-            println("error args")
-            exitProcess(1)
-        }
-    }
+//    if (args.size != 2) {
+//        if (args[0] != "-c") {
+//            println("error args")
+//            exitProcess(1)
+//        }
+//    }
+//
+//    val configFile = File(args[1])
+//    if (!configFile.exists()) {
+//        println("config file not exist")
+//        exitProcess(1)
+//    }
+//
+//    val ss2socksConfig = config(configFile).getConfig()
 
-    val configFile = File(args[1])
-    if (!configFile.exists()) {
-        println("config file not exist")
-        exitProcess(1)
-    }
-
-    val ss2socksConfig = config(configFile).getConfig()
-
-    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
-    async {
-        core.runForever()
-    }
+//    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
+    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
+//    async {
+//        core.runForever()
+//    }
+    core.runForever()
 }
