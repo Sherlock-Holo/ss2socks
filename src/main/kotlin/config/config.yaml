@@ -1,5 +1,5 @@
-ssAddr: 0.0.0.0
-ssPort: 3389
-backEndAddr: 0.0.0.0
-backEndPort: 3390
+ssAddr: 127.0.0.2
+ssPort: 1088
+backEndAddr: 127.0.0.2
+backEndPort: 1888
 password: holo

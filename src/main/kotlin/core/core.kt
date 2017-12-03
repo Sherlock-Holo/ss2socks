@@ -369,25 +369,22 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
 }
 
 fun main(args: Array<String>) = runBlocking<Unit> {
-//    if (args.size != 2) {
-//        if (args[0] != "-c") {
-//            println("error args")
-//            exitProcess(1)
-//        }
-//    }
-//
-//    val configFile = File(args[1])
-//    if (!configFile.exists()) {
-//        println("config file not exist")
-//        exitProcess(1)
-//    }
-//
-//    val ss2socksConfig = config(configFile).getConfig()
+    if (args.size != 2) {
+        if (args[0] != "-c") {
+            println("error args")
+            exitProcess(1)
+        }
+    }
 
-//    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
-    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
-//    async {
-//        core.runForever()
-//    }
+    val configFile = File(args[1])
+    if (!configFile.exists()) {
+        println("config file not exist")
+        exitProcess(1)
+    }
+
+    val ss2socksConfig = config(configFile).getConfig()
+
+    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
+//    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
     core.runForever()
 }
