@@ -88,7 +88,8 @@ class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
 }
 
 fun main(args: Array<String>) {
-    val plainText = "sherlock".toByteArray()
+    val plainBuffer = ByteBuffer.allocate(100)
+    val cipherBuffer = ByteBuffer.allocate(100)
     val key = password2key("qlx")
 
     val en = AES256CTR(key)
@@ -96,7 +97,14 @@ fun main(args: Array<String>) {
 
     val de = AES256CTR(key, iv)
 
-    val cipherText = en.encrypt(plainText)
-    println(String(de.decrypt(cipherText.copyOfRange(0, 3))))
-    println(String(de.decrypt(cipherText.copyOfRange(3, cipherText.size))))
+    plainBuffer.put("sherlock".toByteArray())
+    plainBuffer.flip()
+    en.encrypt(plainBuffer, cipherBuffer)
+    plainBuffer.clear()
+    cipherBuffer.flip()
+    de.decrypt(cipherBuffer, plainBuffer)
+    plainBuffer.flip()
+    val new = ByteArray(8)
+    plainBuffer.get(new)
+    println(String(new))
 }

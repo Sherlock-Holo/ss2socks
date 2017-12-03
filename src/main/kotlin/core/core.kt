@@ -163,6 +163,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             // connect to backEnd
 //            backEndSocketChannel = AsynchronousSocketChannel.open()
             backEndSocketChannel.aConnect(InetSocketAddress(backEndAddr, backEndPort))
+            logger.info("connected to back end server")
 
             // request socks5
             plainWriteBuffer.put(byteArrayOf(5, 1, 0))
@@ -179,6 +180,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             plainReadBuffer.flip()
             val method = ByteArray(2)
             plainReadBuffer.get(method)
+
             plainReadBuffer.clear()
 
             if (method[0].toInt() != 5) {
@@ -188,6 +190,8 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             if (method[1].toInt() != 0) {
                 TODO("auth is not No-auth")
             }
+
+            logger.info("use no auth mode")
 
             // send request
             plainWriteBuffer.put(byteArrayOf(5, 1, 0, atyp.toByte()))
@@ -203,14 +207,15 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             // ready to relay
             plainWriteBuffer.clear()
 
-//            backEndCanRead = 0
-            while (backEndCanRead < 6) {
+            // recv reply
+            while (backEndCanRead < 2 + 4) {
                 backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
             }
             plainReadBuffer.flip()
 
             val repliesCheck = ByteArray(4)
             plainReadBuffer.get(repliesCheck)
+
             plainReadBuffer.compact()
 //            plainReadBuffer.flip()
 
@@ -220,27 +225,31 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
 
             var bindAddr = ByteArray(4)
             val bindPort = ByteArray(2)
-//            backEndCanRead = 0
+
+            logger.info("bind atyp: ${repliesCheck[3].toInt()}")
+
             when (repliesCheck[3].toInt()) {
                 1 -> {
-                    while (backEndCanRead < 6 + 6) {
+                    while (backEndCanRead < 2 + 4 + 6) {
                         backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
                     }
                     plainReadBuffer.flip()
                     plainReadBuffer.get(bindAddr)
                     plainReadBuffer.get(bindPort)
 //                    plainReadBuffer.compact()
+                    logger.info("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, port: ${getPort(bindPort)}")
                 }
 
                 3 -> {
-                    while (backEndCanRead < 6 + 1) {
+                    while (backEndCanRead < 2 + 4 + 1) {
                         backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
                     }
                     plainReadBuffer.flip()
                     val bindAddrLen = plainReadBuffer.get().toInt()
+                    logger.info("bind addr length: $bindAddr")
                     plainReadBuffer.compact()
 
-                    while (backEndCanRead < 7 + bindAddrLen + 2) {
+                    while (backEndCanRead < 2 + 4 + 1 + bindAddrLen + 2) {
                         backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
                     }
                     plainReadBuffer.flip()
@@ -248,10 +257,11 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     plainReadBuffer.get(bindAddr)
                     plainReadBuffer.get(bindPort)
 //                    plainReadBuffer.compact()
+                    logger.info("bind addr: ${String(bindAddr)}, port: ${getPort(bindPort)}")
                 }
 
                 4 -> {
-                    while (backEndCanRead < 6 + 16 + 2) {
+                    while (backEndCanRead < 2 + 4 + 16 + 2) {
                         backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
                     }
                     plainReadBuffer.flip()
@@ -259,6 +269,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     plainReadBuffer.get(bindAddr)
                     plainReadBuffer.get(bindPort)
 //                    plainReadBuffer.compact()
+                    logger.info("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, port: ${getPort(bindPort)}")
                 }
 
                 else -> {
@@ -267,7 +278,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             }
 
             val writeCipher = AES256CTR(key)
-            val writeIv = writeCipher.getIVorNonce()
+            val writeIv = writeCipher.getIVorNonce()!!
 
             // ready to relay
             plainReadBuffer.clear()
@@ -281,23 +292,33 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             // ready to relay
             cipherWriteBuffer.clear()
 
+            logger.info("start relay to backEnd")
             // sslocal -> ss2socks -> backEnd
             async {
                 var haveRead: Int
                 try {
+                    if (cipherReadBuffer.position() != 0) {
+                        cipherReadBuffer.flip()
+                        readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
+                        cipherReadBuffer.clear()
+                        plainWriteBuffer.flip()
+                        backEndSocketChannel.aWrite(plainWriteBuffer)
+                        plainWriteBuffer.clear()
+                    }
+
                     while (true) {
                         haveRead = client.aRead(cipherReadBuffer)
                         if (haveRead <= 0) {
-                            client.shutdownOutput()
-                            client.shutdownInput()
-                            backEndSocketChannel.shutdownInput()
-                            backEndSocketChannel.shutdownOutput()
+//                            client.shutdownOutput()
+//                            client.shutdownInput()
+//                            backEndSocketChannel.shutdownInput()
+//                            backEndSocketChannel.shutdownOutput()
                             break
                         }
 
                         cipherReadBuffer.flip()
                         readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                        cipherReadBuffer.compact()
+                        cipherReadBuffer.clear()
                         plainWriteBuffer.flip()
                         backEndSocketChannel.aWrite(plainWriteBuffer)
                         plainWriteBuffer.clear()
@@ -311,22 +332,23 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             }
 
             // backEnd -> ss2socks > sslocal
+            logger.info("start relay back to sslocal")
             async {
                 var haveRead: Int
                 try {
                     while (true) {
                         haveRead = backEndSocketChannel.aRead(plainReadBuffer)
                         if (haveRead <= 0) {
-                            client.shutdownOutput()
-                            client.shutdownInput()
-                            backEndSocketChannel.shutdownInput()
-                            backEndSocketChannel.shutdownOutput()
+//                            client.shutdownOutput()
+//                            client.shutdownInput()
+//                            backEndSocketChannel.shutdownInput()
+//                            backEndSocketChannel.shutdownOutput()
                             break
                         }
 
                         plainReadBuffer.flip()
                         writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
-                        plainReadBuffer.compact()
+                        plainReadBuffer.clear()
                         cipherWriteBuffer.flip()
                         client.aWrite(cipherWriteBuffer)
                         cipherWriteBuffer.clear()
