@@ -82,7 +82,7 @@ class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
         cipher.update(cipherBuffer, plainBuffer)
     }
 
-    fun stop() {
+    fun finish() {
         cipher.doFinal()
     }
 }
