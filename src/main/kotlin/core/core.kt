@@ -1,7 +1,7 @@
 package core
 
 import config.config
-import encrypt.AES256CFB
+import encrypt.AES256CTR
 import encrypt.password2key
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aAccept
@@ -10,10 +10,12 @@ import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
 import java.io.File
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
+import java.util.*
 import java.util.logging.Logger
 import kotlin.system.exitProcess
 
@@ -34,7 +36,7 @@ private fun getPort(byteArray: ByteArray): Int {
     return (byteArray[0].toInt() and 0xFF shl 8) or (byteArray[1].toInt() and 0xFF)
 }
 
-class Server(private val ssAddr: String, private val ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, private val password: String) {
+class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String) {
     val serverChannel = AsynchronousServerSocketChannel.open()
     val key = password2key(password)
     init {
@@ -68,23 +70,23 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
             val readIv = ByteArray(16)
             cipherReadBuffer.get(readIv)
             cipherReadBuffer.compact()
+            cipherReadBuffer.flip()
 
-            val IVStringBuffer = StringBuffer()
-            for (i in 0 until readIv.size) {
-                IVStringBuffer.append(Integer.toBinaryString(readIv[i].toInt()))
-            }
-            logger.info(IVStringBuffer.toString())
+//            val base64 = Base64.getEncoder()
+//            logger.info(base64.encodeToString(readIv))
 
-            val readCipher = AES256CFB(key, readIv)
+            val readCipher = AES256CTR(key, readIv)
 
-            var rawatyp = byteArrayOf(cipherReadBuffer.get())
+            var rawatyp = ByteArray(1)
+            cipherReadBuffer.get(rawatyp)
+            cipherReadBuffer.compact()
             rawatyp = readCipher.decrypt(rawatyp)
-            val atyp = rawatyp[0].toInt()
+            val atyp = rawatyp[0].toInt() and 0xFF
             var addrLen = 0
             var addr = ByteArray(4)
             var port = ByteArray(2)
 
-            logger.info("atyp: ${atyp}")
+            logger.info("atyp: $atyp")
 
             when (atyp) {
                 1 -> {
@@ -99,6 +101,8 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
 
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
+
+                    logger.info("addr: ${InetAddress.getByAddress(addr).hostAddress}, port: ${getPort(port)}")
                 }
 
                 3 -> {
@@ -106,11 +110,14 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
                         ssCanRead += client.aRead(cipherReadBuffer)
                     }
                     cipherReadBuffer.flip()
-                    var rawAddrLen = byteArrayOf(cipherReadBuffer.get())
+
+                    var rawAddrLen = ByteArray(1)
+                    cipherReadBuffer.get(rawAddrLen)
                     cipherReadBuffer.compact()
 
                     rawAddrLen = readCipher.decrypt(rawAddrLen)
-                    addrLen = rawAddrLen[0].toInt()
+                    addrLen = rawAddrLen[0].toInt() and 0xFF
+                    logger.info("addr len: $addrLen")
 
                     while (ssCanRead < 17 + 1 + addrLen) {
                         ssCanRead += client.aRead(cipherReadBuffer)
@@ -124,6 +131,8 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
 
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
+
+                    logger.info("addr: ${String(addr)}, port: ${getPort(port)}")
                 }
 
                 4 -> {
@@ -138,14 +147,14 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
 
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
+
+                    logger.info("addr: ${InetAddress.getByAddress(addr).hostAddress}, port: ${getPort(port)}")
                 }
 
                 else -> {
                     TODO("other atyp handle")
                 }
             }
-
-            logger.info("addr: $addr, port: $port")
 
             // ready to relay
             cipherReadBuffer.compact()
@@ -257,7 +266,7 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
                 }
             }
 
-            val writeCipher = AES256CFB(key)
+            val writeCipher = AES256CTR(key)
             val writeIv = writeCipher.getIVorNonce()
 
             // ready to relay
@@ -332,7 +341,7 @@ class Server(private val ssAddr: String, private val ssPort: Int, private val ba
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
-            logger.warning(e.message)
+            logger.warning(e.toString())
         }
     }
 }
