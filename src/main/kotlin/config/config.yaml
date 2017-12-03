@@ -3,3 +3,5 @@ ssPort: 1088
 backEndAddr: 127.0.0.2
 backEndPort: 1888
 password: holo
+# default buffer size is 4096
+buffer: 8192

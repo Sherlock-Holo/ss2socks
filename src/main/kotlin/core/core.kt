@@ -21,7 +21,7 @@ import kotlin.system.exitProcess
 
 val logger = Logger.getLogger("ss2socks logger")!!
 
-class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String) {
+class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String, private val buffer: Int) {
     val serverChannel = AsynchronousServerSocketChannel.open()
     val key = password2key(password)
     init {
@@ -38,10 +38,10 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
     }
 
     suspend private fun handle(client: AsynchronousSocketChannel) {
-        val cipherReadBuffer = ByteBuffer.allocate(4096)
-        val cipherWriteBuffer = ByteBuffer.allocate(4096)
-        val plainWriteBuffer = ByteBuffer.allocate(4096)
-        val plainReadBuffer = ByteBuffer.allocate(4096)
+        val cipherReadBuffer = ByteBuffer.allocate(buffer)
+        val cipherWriteBuffer = ByteBuffer.allocate(buffer)
+        val plainWriteBuffer = ByteBuffer.allocate(buffer)
+        val plainReadBuffer = ByteBuffer.allocate(buffer)
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
 
@@ -376,7 +376,7 @@ fun main(args: Array<String>) = runBlocking<Unit> {
 
     val ss2socksConfig = Config(configFile).getConfig()
 
-    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
+    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password, ss2socksConfig.buffer)
 //    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
     logger.info("Start ss2socks service")
     core.runForever()
