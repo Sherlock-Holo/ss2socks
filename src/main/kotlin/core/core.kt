@@ -379,5 +379,7 @@ fun main(args: Array<String>) = runBlocking<Unit> {
     val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password, ss2socksConfig.buffer)
 //    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
     logger.info("Start ss2socks service")
+    logger.info("ss listen on ${ss2socksConfig.ssAddr}:${ss2socksConfig.ssPort}")
+    logger.info("backEnd listen on ${ss2socksConfig.backEndAddr}:${ss2socksConfig.backEndPort}")
     core.runForever()
 }
