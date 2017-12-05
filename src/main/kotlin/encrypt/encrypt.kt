@@ -1,13 +1,11 @@
 package encrypt
 
+import dynamicBuffer.DynamicBuffer
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
-
-val EncryptMode = 0
-val DecryptMode = 1
 
 private interface GeneralCipher {
     // maybe some encrypt module doesn't use IV or Nonce
@@ -33,32 +31,16 @@ fun password2key(passwd: String): ByteArray {
 }
 
 class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCipher {
-    val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-    val skey = SecretKeySpec(key, "AES")
+    private val cipher = Cipher.getInstance("AES/CTR/NoPadding")
+    private val skey = SecretKeySpec(key, "AES")
+    lateinit var tmpBuffer: ByteArray
 
     init {
         if (iv != null) {
-//            cipher.init(Cipher.DECRYPT_MODE, skey, IvParameterSpec(iv))
-            init(DecryptMode, iv)
+            cipher.init(Cipher.DECRYPT_MODE, skey, IvParameterSpec(iv))
         } else {
-            init(EncryptMode)
-        }
-    }
-
-    private fun init(mode: Int, iv: ByteArray? = null) {
-        when (mode) {
-            EncryptMode -> {
-                cipher.init(Cipher.ENCRYPT_MODE, skey)
-                this.iv = cipher.iv
-            }
-
-            DecryptMode -> {
-                if (iv != null) {
-                    cipher.init(Cipher.DECRYPT_MODE, skey, IvParameterSpec(iv))
-                } else {
-                    cipher.init(Cipher.DECRYPT_MODE, skey, IvParameterSpec(getIVorNonce()))
-                }
-            }
+            cipher.init(Cipher.ENCRYPT_MODE, skey)
+            this.iv = cipher.iv
         }
     }
 
@@ -85,11 +67,23 @@ class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
     fun finish() {
         cipher.doFinal()
     }
+
+    fun encrypt(plainBuffer: DynamicBuffer, cipherBuffer: DynamicBuffer) {
+        tmpBuffer = ByteArray(plainBuffer.limit())
+        plainBuffer.get(tmpBuffer)
+        cipherBuffer.put(this.encrypt(tmpBuffer))
+    }
+
+    fun decrypt(cipherBuffer: DynamicBuffer, plainBuffer: DynamicBuffer) {
+        tmpBuffer = ByteArray(cipherBuffer.limit())
+        cipherBuffer.get(tmpBuffer)
+        plainBuffer.put(this.decrypt(tmpBuffer))
+    }
 }
 
 fun main(args: Array<String>) {
-    val plainBuffer = ByteBuffer.allocate(100)
-    val cipherBuffer = ByteBuffer.allocate(100)
+    val plainBuffer = DynamicBuffer().allocate(100)
+    val cipherBuffer = DynamicBuffer().allocate(100)
     val key = password2key("qlx")
 
     val en = AES256CTR(key)
@@ -99,6 +93,7 @@ fun main(args: Array<String>) {
 
     plainBuffer.put("sherlock".toByteArray())
     plainBuffer.flip()
+    println(plainBuffer.capacity())
     en.encrypt(plainBuffer, cipherBuffer)
     plainBuffer.clear()
     cipherBuffer.flip()
