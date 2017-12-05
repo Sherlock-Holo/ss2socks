@@ -7,9 +7,15 @@ class DynamicBuffer {
     var bufferSize = 4096
     var continueTimes = 0
 
-    fun allocate(capacity: Int): ByteBuffer {
+    fun allocate(uselessCapacity: Int): DynamicBuffer {
         buffer = ByteBuffer.allocate(bufferSize)
-        return buffer
+        return this
+    }
+
+    fun customAllocate(capacity: Int): DynamicBuffer {
+        bufferSize = capacity
+        buffer = ByteBuffer.allocate(bufferSize)
+        return this
     }
 
     fun get(): Byte {
@@ -75,11 +81,23 @@ class DynamicBuffer {
     fun position(newPosition: Int): ByteBuffer {
         return buffer.position(newPosition) as ByteBuffer
     }
+
+    fun limit(): Int {
+        return buffer.limit()
+    }
+
+    fun limit(newLimit: Int): ByteBuffer {
+        return buffer.limit(newLimit) as ByteBuffer
+    }
+
+    fun capacity(): Int {
+        return bufferSize
+    }
 }
 
 fun main(args: Array<String>) {
-    val dbuffer = DynamicBuffer()
-    dbuffer.allocate(4096)
+    val dbuffer = DynamicBuffer().allocate(4096)
+//    dbuffer.allocate(4096)
     dbuffer.put("sherlock".toByteArray())
     dbuffer.flip()
     println(String(byteArrayOf(dbuffer.get())))
