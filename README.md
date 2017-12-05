@@ -13,6 +13,13 @@ So, this program will help me convert shadowsocks protocol back to socks5 and th
 |:-:|:-:|:-:|:-:|:-:|
 |`shadowsocks-android`|shadowsocks protocol|`ss2socks`|socks protocol|`back end`|
 
+### Usage
+`kotlin ss2socks.jar -c config.yaml`
+
+or
+
+`java -jar ss2socks.jar -c config.yaml`
+
 ### Notice
 shadowsocks encrypt mode is `aes-256-ctr`.
 
