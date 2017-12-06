@@ -20,6 +20,10 @@ or
 
 `java -jar ss2socks.jar -c config.yaml`
 
+### Feature
+Coroutine support
+Auto expand Buffer
+
 ### Notice
 shadowsocks encrypt mode is `aes-256-ctr`.
 
@@ -30,6 +34,4 @@ ssPort: 1088
 backEndAddr: 127.0.0.2
 backEndPort: 1888
 password: holo
-# default buffer size is 32768
-buffer: 32768
 ```
