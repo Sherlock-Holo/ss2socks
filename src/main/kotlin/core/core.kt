@@ -336,7 +336,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         plainWriteBuffer.clear()
                     }
                 } catch (e: Throwable) {
-                    logger.warning(e.toString())
+                    logger.warning("sslocal -> ss2socks -> backEnd : $e")
                 } finally {
                     client.close()
                     backEndSocketChannel.close()
@@ -382,7 +382,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         cipherWriteBuffer.clear()
                     }
                 } catch (e: Throwable) {
-                    logger.warning(e.toString())
+                    logger.warning("backEnd -> ss2socks > sslocal : $e")
                 } finally {
                     client.close()
                     backEndSocketChannel.close()
