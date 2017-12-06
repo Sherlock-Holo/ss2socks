@@ -21,7 +21,7 @@ import kotlin.system.exitProcess
 
 val logger = Logger.getLogger("ss2socks logger")!!
 
-class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String, private val buffer: Int) {
+class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String) {
     private val serverChannel = AsynchronousServerSocketChannel.open()
     private val key = password2key(password)
     private val defaultBufferSize = 4096
@@ -40,8 +40,8 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
 
     suspend private fun handle(client: AsynchronousSocketChannel) {
         var cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
-        val cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-        val plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+        var cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+        var plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
         var plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
@@ -311,12 +311,17 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                             break
                         }
 
+                        // expend buffer size
                         if (haveRead == bufferSize) {
-                            times++
-                            if (times == 3) {
+                            if (times < 3) {
+                                times++
+                            } else {
                                 bufferSize *= 2
+                                cipherReadBuffer.flip()
                                 cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
+                                plainWriteBuffer = ByteBuffer.allocate(bufferSize)
                                 times = 0
+                                logger.info("expend buffer size to $bufferSize")
                             }
                         } else {
                             times--
@@ -331,7 +336,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         plainWriteBuffer.clear()
                     }
                 } catch (e: Throwable) {
-                    TODO("log this error")
+                    logger.warning(e.message)
                 } finally {
                     client.close()
                     backEndSocketChannel.close()
@@ -354,11 +359,15 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         }
 
                         if (haveRead == bufferSize) {
-                            times++
-                            if (times == 3) {
+                            if (times < 3) {
+                                times++
+                            } else {
                                 bufferSize *= 2
+                                plainReadBuffer.flip()
                                 plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
+                                cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
                                 times = 0
+                                logger.info("expend buffer size to $bufferSize")
                             }
                         } else {
                             times--
@@ -373,7 +382,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         cipherWriteBuffer.clear()
                     }
                 } catch (e: Throwable) {
-                    TODO("log this error")
+                    logger.warning(e.message)
                 } finally {
                     client.close()
                     backEndSocketChannel.close()
@@ -384,7 +393,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
-            logger.warning(e.toString())
+            logger.warning(e.message)
         }
     }
 }
@@ -405,7 +414,7 @@ fun main(args: Array<String>) = runBlocking<Unit> {
 
     val ss2socksConfig = Config(configFile).getConfig()
 
-    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password, ss2socksConfig.buffer)
+    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
 //    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
     logger.info("Start ss2socks service")
     logger.info("shadowsocks listen on ${ss2socksConfig.ssAddr}:${ss2socksConfig.ssPort}")
