@@ -22,8 +22,9 @@ import kotlin.system.exitProcess
 val logger = Logger.getLogger("ss2socks logger")!!
 
 class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String, private val buffer: Int) {
-    val serverChannel = AsynchronousServerSocketChannel.open()
-    val key = password2key(password)
+    private val serverChannel = AsynchronousServerSocketChannel.open()
+    private val key = password2key(password)
+    private val defaultBufferSize = 4096
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
     }
@@ -38,10 +39,10 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
     }
 
     suspend private fun handle(client: AsynchronousSocketChannel) {
-        val cipherReadBuffer = ByteBuffer.allocate(buffer)
-        val cipherWriteBuffer = ByteBuffer.allocate(buffer)
-        val plainWriteBuffer = ByteBuffer.allocate(buffer)
-        val plainReadBuffer = ByteBuffer.allocate(buffer)
+        var cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
+        val cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+        val plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+        var plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
 
@@ -291,6 +292,8 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             // sslocal -> ss2socks -> backEnd
             logger.fine("start relay to backEnd")
             async {
+                var bufferSize = defaultBufferSize
+                var times = 0
                 var haveRead: Int
                 try {
                     if (cipherReadBuffer.position() != 0) {
@@ -306,6 +309,18 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         haveRead = client.aRead(cipherReadBuffer)
                         if (haveRead <= 0) {
                             break
+                        }
+
+                        if (haveRead == bufferSize) {
+                            times++
+                            if (times == 3) {
+                                bufferSize *= 2
+                                cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
+                                times = 0
+                            }
+                        } else {
+                            times--
+                            if (times < 0) times = 0
                         }
 
                         cipherReadBuffer.flip()
@@ -328,12 +343,26 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             // backEnd -> ss2socks > sslocal
             logger.fine("start relay back to sslocal")
             async {
+                var bufferSize = defaultBufferSize
+                var times = 0
                 var haveRead: Int
                 try {
                     while (true) {
                         haveRead = backEndSocketChannel.aRead(plainReadBuffer)
                         if (haveRead <= 0) {
                             break
+                        }
+
+                        if (haveRead == bufferSize) {
+                            times++
+                            if (times == 3) {
+                                bufferSize *= 2
+                                plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
+                                times = 0
+                            }
+                        } else {
+                            times--
+                            if (times < 0) times = 0
                         }
 
                         plainReadBuffer.flip()
@@ -379,7 +408,7 @@ fun main(args: Array<String>) = runBlocking<Unit> {
     val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password, ss2socksConfig.buffer)
 //    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
     logger.info("Start ss2socks service")
-    logger.info("ss listen on ${ss2socksConfig.ssAddr}:${ss2socksConfig.ssPort}")
+    logger.info("shadowsocks listen on ${ss2socksConfig.ssAddr}:${ss2socksConfig.ssPort}")
     logger.info("backEnd listen on ${ss2socksConfig.backEndAddr}:${ss2socksConfig.backEndPort}")
     core.runForever()
 }
