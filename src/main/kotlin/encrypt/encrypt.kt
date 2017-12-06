@@ -80,26 +80,3 @@ class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
         plainBuffer.put(this.decrypt(tmpBuffer))
     }
 }
-
-fun main(args: Array<String>) {
-    val plainBuffer = DynamicBuffer().allocate(100)
-    val cipherBuffer = DynamicBuffer().allocate(100)
-    val key = password2key("qlx")
-
-    val en = AES256CTR(key)
-    val iv = en.getIVorNonce()!!
-
-    val de = AES256CTR(key, iv)
-
-    plainBuffer.put("sherlock".toByteArray())
-    plainBuffer.flip()
-    println(plainBuffer.capacity())
-    en.encrypt(plainBuffer, cipherBuffer)
-    plainBuffer.clear()
-    cipherBuffer.flip()
-    de.decrypt(cipherBuffer, plainBuffer)
-    plainBuffer.flip()
-    val new = ByteArray(8)
-    plainBuffer.get(new)
-    println(String(new))
-}
