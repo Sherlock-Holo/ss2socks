@@ -336,7 +336,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         plainWriteBuffer.clear()
                     }
                 } catch (e: Throwable) {
-                    logger.warning(e.message)
+                    logger.warning(e.toString())
                 } finally {
                     client.close()
                     backEndSocketChannel.close()
@@ -382,7 +382,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                         cipherWriteBuffer.clear()
                     }
                 } catch (e: Throwable) {
-                    logger.warning(e.message)
+                    logger.warning(e.toString())
                 } finally {
                     client.close()
                     backEndSocketChannel.close()
@@ -393,7 +393,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
-            logger.warning(e.message)
+            logger.warning(e.toString())
         }
     }
 }
