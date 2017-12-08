@@ -21,9 +21,9 @@ or
 `java -jar ss2socks.jar -c config.yaml`
 
 ### Feature
-Coroutine support
+- Coroutine support
 
-Auto expand Buffer
+- Auto expand Buffer
 
 ### Notice
 shadowsocks encrypt mode is `aes-256-ctr`.
