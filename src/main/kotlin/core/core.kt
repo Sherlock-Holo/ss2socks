@@ -46,6 +46,9 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
 
+        var readCipher = AES256CTR(key)
+        var writeCipher =  AES256CTR(key)
+
         try {
             var ssCanRead = 0
             // read IV and atyp
@@ -59,7 +62,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             cipherReadBuffer.compact()
             cipherReadBuffer.flip()
 
-            val readCipher = AES256CTR(key, readIv)
+            readCipher = AES256CTR(key, readIv)
 
             var rawatyp = ByteArray(1)
             cipherReadBuffer.get(rawatyp)
@@ -274,7 +277,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                 }
             }
 
-            val writeCipher = AES256CTR(key)
+            writeCipher = AES256CTR(key)
             val writeIv = writeCipher.getIVorNonce()!!
 
             // ready to relay
@@ -288,112 +291,113 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
 
             // ready to relay
             cipherWriteBuffer.clear()
-
-            // sslocal -> ss2socks -> backEnd
-            logger.fine("start relay to backEnd")
-            async {
-                var bufferSize = defaultBufferSize
-                var times = 0
-                var haveRead: Int
-                try {
-                    if (cipherReadBuffer.position() != 0) {
-                        cipherReadBuffer.flip()
-                        readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                        cipherReadBuffer.clear()
-                        plainWriteBuffer.flip()
-                        backEndSocketChannel.aWrite(plainWriteBuffer)
-                        plainWriteBuffer.clear()
-                    }
-
-                    while (true) {
-                        haveRead = client.aRead(cipherReadBuffer)
-                        if (haveRead <= 0) {
-                            break
-                        }
-
-                        // expend buffer size
-                        if (haveRead == bufferSize) {
-                            if (times < 3) {
-                                times++
-                            } else {
-                                bufferSize *= 2
-                                cipherReadBuffer.flip()
-                                cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
-                                plainWriteBuffer = ByteBuffer.allocate(bufferSize)
-                                times = 0
-                                logger.info("expend buffer size to $bufferSize")
-                            }
-                        } else {
-                            times--
-                            if (times < 0) times = 0
-                        }
-
-                        cipherReadBuffer.flip()
-                        readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                        cipherReadBuffer.clear()
-                        plainWriteBuffer.flip()
-                        backEndSocketChannel.aWrite(plainWriteBuffer)
-                        plainWriteBuffer.clear()
-                    }
-                } catch (e: Throwable) {
-                    logger.warning("sslocal -> ss2socks -> backEnd : $e")
-                } finally {
-                    client.close()
-                    backEndSocketChannel.close()
-                    readCipher.finish()
-                    writeCipher.finish()
-                }
-            }
-
-            // backEnd -> ss2socks > sslocal
-            logger.fine("start relay back to sslocal")
-            async {
-                var bufferSize = defaultBufferSize
-                var times = 0
-                var haveRead: Int
-                try {
-                    while (true) {
-                        haveRead = backEndSocketChannel.aRead(plainReadBuffer)
-                        if (haveRead <= 0) {
-                            break
-                        }
-
-                        if (haveRead == bufferSize) {
-                            if (times < 3) {
-                                times++
-                            } else {
-                                bufferSize *= 2
-                                plainReadBuffer.flip()
-                                plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
-                                cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
-                                times = 0
-                                logger.info("expend buffer size to $bufferSize")
-                            }
-                        } else {
-                            times--
-                            if (times < 0) times = 0
-                        }
-
-                        plainReadBuffer.flip()
-                        writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
-                        plainReadBuffer.clear()
-                        cipherWriteBuffer.flip()
-                        client.aWrite(cipherWriteBuffer)
-                        cipherWriteBuffer.clear()
-                    }
-                } catch (e: Throwable) {
-                    logger.warning("backEnd -> ss2socks > sslocal : $e")
-                } finally {
-                    client.close()
-                    backEndSocketChannel.close()
-                    readCipher.finish()
-                    writeCipher.finish()
-                }
-            }
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
             logger.warning(e.toString())
+            return
+        }
+
+        // sslocal -> ss2socks -> backEnd
+        logger.fine("start relay to backEnd")
+        async {
+            var bufferSize = defaultBufferSize
+            var times = 0
+            var haveRead: Int
+            try {
+                if (cipherReadBuffer.position() != 0) {
+                    cipherReadBuffer.flip()
+                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
+                    cipherReadBuffer.clear()
+                    plainWriteBuffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer)
+                    plainWriteBuffer.clear()
+                }
+
+                while (true) {
+                    haveRead = client.aRead(cipherReadBuffer)
+                    if (haveRead <= 0) {
+                        break
+                    }
+
+                    // expend buffer size
+                    if (haveRead == bufferSize) {
+                        if (times < 3) {
+                            times++
+                        } else {
+                            bufferSize *= 2
+                            cipherReadBuffer.flip()
+                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
+                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
+                            times = 0
+                            logger.info("expend buffer size to $bufferSize")
+                        }
+                    } else {
+                        times--
+                        if (times < 0) times = 0
+                    }
+
+                    cipherReadBuffer.flip()
+                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
+                    cipherReadBuffer.clear()
+                    plainWriteBuffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer)
+                    plainWriteBuffer.clear()
+                }
+            } catch (e: Throwable) {
+                logger.warning("sslocal -> ss2socks -> backEnd : $e")
+            } finally {
+                client.close()
+                backEndSocketChannel.close()
+                readCipher.finish()
+                writeCipher.finish()
+            }
+        }
+
+        // backEnd -> ss2socks > sslocal
+        logger.fine("start relay back to sslocal")
+        async {
+            var bufferSize = defaultBufferSize
+            var times = 0
+            var haveRead: Int
+            try {
+                while (true) {
+                    haveRead = backEndSocketChannel.aRead(plainReadBuffer)
+                    if (haveRead <= 0) {
+                        break
+                    }
+
+                    if (haveRead == bufferSize) {
+                        if (times < 3) {
+                            times++
+                        } else {
+                            bufferSize *= 2
+                            plainReadBuffer.flip()
+                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
+                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
+                            times = 0
+                            logger.info("expend buffer size to $bufferSize")
+                        }
+                    } else {
+                        times--
+                        if (times < 0) times = 0
+                    }
+
+                    plainReadBuffer.flip()
+                    writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
+                    plainReadBuffer.clear()
+                    cipherWriteBuffer.flip()
+                    client.aWrite(cipherWriteBuffer)
+                    cipherWriteBuffer.clear()
+                }
+            } catch (e: Throwable) {
+                logger.warning("backEnd -> ss2socks > sslocal : $e")
+            } finally {
+                client.close()
+                backEndSocketChannel.close()
+                readCipher.finish()
+                writeCipher.finish()
+            }
         }
     }
 }
