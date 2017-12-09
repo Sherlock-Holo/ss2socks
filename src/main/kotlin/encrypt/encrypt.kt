@@ -1,6 +1,5 @@
 package encrypt
 
-import dynamicBuffer.DynamicBuffer
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import javax.crypto.Cipher
@@ -66,17 +65,5 @@ class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
 
     fun finish() {
         cipher.doFinal()
-    }
-
-    fun encrypt(plainBuffer: DynamicBuffer, cipherBuffer: DynamicBuffer) {
-        tmpBuffer = ByteArray(plainBuffer.limit())
-        plainBuffer.get(tmpBuffer)
-        cipherBuffer.put(this.encrypt(tmpBuffer))
-    }
-
-    fun decrypt(cipherBuffer: DynamicBuffer, plainBuffer: DynamicBuffer) {
-        tmpBuffer = ByteArray(cipherBuffer.limit())
-        cipherBuffer.get(tmpBuffer)
-        plainBuffer.put(this.decrypt(tmpBuffer))
     }
 }
