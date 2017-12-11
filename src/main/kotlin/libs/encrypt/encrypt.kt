@@ -1,4 +1,4 @@
-package encrypt
+package libs.encrypt
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
@@ -7,7 +7,7 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 private interface GeneralCipher {
-    // maybe some encrypt module doesn't use IV or Nonce
+    // maybe some libs.encrypt module doesn't use IV or Nonce
     fun getIVorNonce(): ByteArray?
 
     fun encrypt(plainText: ByteArray): ByteArray

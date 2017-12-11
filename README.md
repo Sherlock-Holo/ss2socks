@@ -26,7 +26,7 @@ or
 - Auto expand Buffer
 
 ### Notice
-shadowsocks encrypt mode is `aes-256-ctr`.
+shadowsocks libs.encrypt mode is `aes-256-ctr`.
 
 ### Config file example
 ```

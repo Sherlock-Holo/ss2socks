@@ -1,15 +1,15 @@
 package core
 
 import config.Config
-import encrypt.AES256CTR
-import encrypt.password2key
+import libs.encrypt.AES256CTR
+import libs.encrypt.password2key
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.nio.aConnect
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
-import utils.GetPort
+import libs.TCPPort.GetPort
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -90,7 +90,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, port: ${GetPort(port)}")
+                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
                 }
 
                 3 -> {
@@ -119,7 +119,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.fine("addr: ${String(addr)}, port: ${GetPort(port)}")
+                    logger.fine("addr: ${String(addr)}, TCPPort: ${GetPort(port)}")
                 }
 
                 4 -> {
@@ -134,7 +134,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, port: ${GetPort(port)}")
+                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
                 }
 
                 else -> {
@@ -235,7 +235,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     plainReadBuffer.flip()
                     plainReadBuffer.get(bindAddr)
                     plainReadBuffer.get(bindPort)
-                    logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, port: ${GetPort(bindPort)}")
+                    logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
                 }
 
                 3 -> {
@@ -254,7 +254,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     bindAddr = ByteArray(bindAddrLen)
                     plainReadBuffer.get(bindAddr)
                     plainReadBuffer.get(bindPort)
-                    logger.fine("bind addr: ${String(bindAddr)}, port: ${GetPort(bindPort)}")
+                    logger.fine("bind addr: ${String(bindAddr)}, TCPPort: ${GetPort(bindPort)}")
                 }
 
                 4 -> {
@@ -265,7 +265,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     bindAddr = ByteArray(16)
                     plainReadBuffer.get(bindAddr)
                     plainReadBuffer.get(bindPort)
-                    logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, port: ${GetPort(bindPort)}")
+                    logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
                 }
 
                 else -> {
