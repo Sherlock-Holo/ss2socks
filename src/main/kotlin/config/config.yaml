@@ -3,3 +3,12 @@ ssPort: 1088
 backEndAddr: 127.0.0.2
 backEndPort: 1888
 password: holo
+
+# secret channel mode
+geoIP: True
+# It is necessary when you use secret channel
+# mode, you need to make geoIP True.
+# When you don't need secret channel mode,
+# you don't need to care about it, just
+# make geoIP False
+geoIPDatabaseFilePath: /etc/ss2socks/GeoLite2-City.mmdb
