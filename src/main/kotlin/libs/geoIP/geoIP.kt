@@ -8,23 +8,28 @@ import java.net.InetAddress
 import kotlin.collections.HashMap
 
 
-class GeoIP(filePath: String) {
-    private val dataBaseFile = File(filePath)
-    private val reader = DatabaseReader.Builder(dataBaseFile).build()
+class GeoIP(filePath: String?) {
+    private lateinit var dataBaseFile: File
+    private var reader: DatabaseReader?
     private val cache = HashMap<String, String>()
 
     init {
-        if (dataBaseFile.exists()) reader
-        else TODO("raise an exception")
+        reader = null
+        if (filePath != null) {
+            dataBaseFile = File(filePath)
+            if (dataBaseFile.exists()) reader = DatabaseReader.Builder(dataBaseFile).build()
+        }
     }
 
     fun getIPCountry(rawIP: ByteArray): String? {
+        if (reader == null) return null
+
         val ip = InetAddress.getByAddress(rawIP).hostAddress
         if (cache.containsKey(ip)) return cache[ip]
 
         val response: CityResponse
         try {
-            response = reader.city(InetAddress.getByAddress(rawIP))
+            response = reader!!.city(InetAddress.getByAddress(rawIP))
         } catch (e: AddressNotFoundException) {
             return null
         }
