@@ -5,7 +5,7 @@ backEndPort: 1888
 password: holo
 
 # secret channel mode
-geoIP: false
+geoIP: true
 # It is necessary when you use secret channel
 # mode, you need to make geoIP True.
 # When you don't need secret channel mode,

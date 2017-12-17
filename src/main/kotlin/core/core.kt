@@ -107,7 +107,7 @@ class Server(ss2socks: ServerConfig) {
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.info("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
+                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
                 }
 
                 3 -> {
@@ -136,7 +136,7 @@ class Server(ss2socks: ServerConfig) {
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.info("addr: ${String(addr)}, TCPPort: ${GetPort(port)}")
+                    logger.fine("addr: ${String(addr)}, TCPPort: ${GetPort(port)}")
                 }
 
                 4 -> {
@@ -151,7 +151,7 @@ class Server(ss2socks: ServerConfig) {
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.info("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
+                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
                 }
 
                 else -> {
@@ -188,12 +188,22 @@ class Server(ss2socks: ServerConfig) {
                 3 -> {
                     addr = InetAddress.getByName(String(addr)).address
                     if (!geoip.isChinaIP(addr)) {
-                        logger.info("target domain name is not in China, it is ${InetAddress.getByAddress(addr).hostAddress}")
+                        logger.info("target domain name is not in China")
                         async {
-                            notChina(
-                                    atyp, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
-                                    plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer
-                            )
+                            when (addr.size) {
+                                4 -> {
+                                    notChina(
+                                            1, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                            plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer
+                                    )
+                                }
+                                16 -> {
+                                    notChina(
+                                            4, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                            plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer
+                                    )
+                                }
+                            }
                         }
                     } else {
                         logger.info("target domain name is in China")
@@ -215,10 +225,6 @@ class Server(ss2socks: ServerConfig) {
                     }
                 }
             }
-
-
-
-
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
@@ -229,12 +235,12 @@ class Server(ss2socks: ServerConfig) {
 
     suspend private fun isChina(
             addr: ByteArray, port: ByteArray, client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
-            cipherReadBuffer: ByteBuffer, plainWriteBuffer: ByteBuffer,
-            readCipher: AES256CTR, plainReadBuffer: ByteBuffer, cipherWriteBuffer: ByteBuffer) {
-        var cipherReadBuffer = cipherReadBuffer
-        var plainWriteBuffer = plainWriteBuffer
-        var plainReadBuffer = plainReadBuffer
-        var cipherWriteBuffer = cipherWriteBuffer
+            rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer,
+            readCipher: AES256CTR, rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
+        var cipherReadBuffer = rawCipherReadBuffer
+        var plainWriteBuffer = rawPlainWriteBuffer
+        var plainReadBuffer = rawPlainReadBuffer
+        var cipherWriteBuffer = rawCipherWriteBuffer
         val writeCipher = AES256CTR(key)
 
         // connect to China server
@@ -361,12 +367,13 @@ class Server(ss2socks: ServerConfig) {
     suspend private fun notChina(
             atyp: Int, addrLen: Int, addr: ByteArray, port: ByteArray,
             client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
-            cipherReadBuffer: ByteBuffer, plainWriteBuffer: ByteBuffer, readCipher: AES256CTR,
-            plainReadBuffer: ByteBuffer, cipherWriteBuffer: ByteBuffer) {
-        var cipherReadBuffer = cipherReadBuffer
-        var plainWriteBuffer = plainWriteBuffer
-        var plainReadBuffer = plainReadBuffer
-        var cipherWriteBuffer = cipherWriteBuffer
+            rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer, readCipher: AES256CTR,
+            rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
+
+        var cipherReadBuffer = rawCipherReadBuffer
+        var plainWriteBuffer = rawPlainWriteBuffer
+        var plainReadBuffer = rawPlainReadBuffer
+        var cipherWriteBuffer = rawCipherWriteBuffer
 
         // connect to backEnd
         backEndSocketChannel.aConnect(InetSocketAddress(backEndAddr, backEndPort))
@@ -406,7 +413,7 @@ class Server(ss2socks: ServerConfig) {
             return
         }
 
-        logger.info("use no auth mode")
+        logger.fine("use no auth mode")
 
         // send request
         plainWriteBuffer.put(byteArrayOf(5, 1, 0, atyp.toByte()))
@@ -414,7 +421,6 @@ class Server(ss2socks: ServerConfig) {
         if (atyp == 3) plainWriteBuffer.put(addrLen.toByte())
 
         plainWriteBuffer.put(addr)
-        logger.info("put addr: ${InetAddress.getByAddress(addr).hostAddress}")
         plainWriteBuffer.put(port)
         plainWriteBuffer.flip()
 
@@ -445,7 +451,7 @@ class Server(ss2socks: ServerConfig) {
         var bindAddr = ByteArray(4)
         val bindPort = ByteArray(2)
 
-        logger.info("bind atyp: ${repliesCheck[3].toInt()}")
+        logger.fine("bind atyp: ${repliesCheck[3].toInt()}")
 
         when (repliesCheck[3].toInt()) {
             1 -> {
@@ -455,7 +461,7 @@ class Server(ss2socks: ServerConfig) {
                 plainReadBuffer.flip()
                 plainReadBuffer.get(bindAddr)
                 plainReadBuffer.get(bindPort)
-                logger.info("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
+                logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
             }
 
             3 -> {
@@ -474,7 +480,7 @@ class Server(ss2socks: ServerConfig) {
                 bindAddr = ByteArray(bindAddrLen)
                 plainReadBuffer.get(bindAddr)
                 plainReadBuffer.get(bindPort)
-                logger.info("bind addr: ${String(bindAddr)}, TCPPort: ${GetPort(bindPort)}")
+                logger.fine("bind addr: ${String(bindAddr)}, TCPPort: ${GetPort(bindPort)}")
             }
 
             4 -> {
@@ -485,7 +491,7 @@ class Server(ss2socks: ServerConfig) {
                 bindAddr = ByteArray(16)
                 plainReadBuffer.get(bindAddr)
                 plainReadBuffer.get(bindPort)
-                logger.info("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
+                logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
             }
 
             else -> {
@@ -513,7 +519,7 @@ class Server(ss2socks: ServerConfig) {
         cipherWriteBuffer.clear()
 
         // sslocal -> ss2socks -> backEnd
-        logger.info("start relay to backEnd")
+        logger.fine("start relay to backEnd")
         async {
             var bufferSize = defaultBufferSize
             var times = 0
@@ -569,7 +575,7 @@ class Server(ss2socks: ServerConfig) {
         }
 
         // backEnd -> ss2socks > sslocal
-        logger.info("start relay back to sslocal")
+        logger.fine("start relay back to sslocal")
         async {
             var bufferSize = defaultBufferSize
             var times = 0
