@@ -18,15 +18,19 @@ So, this program will help me convert shadowsocks protocol back to socks5 and th
 
 or
 
+(recommend because I found some problems on Arch with `kotlin`)
+
 `java -jar ss2socks.jar -c config.yaml`
 
 ### Feature
 - Coroutine support
 
-- Auto expand Buffer
+- Auto expand Buffer size
+
+- Secret channel
 
 ### Notice
-shadowsocks libs.encrypt mode is `aes-256-ctr`.
+shadowsocks encrypt mode is `aes-256-ctr`.
 
 ### Config file example
 ```
@@ -35,4 +39,13 @@ ssPort: 1088
 backEndAddr: 127.0.0.2
 backEndPort: 1888
 password: holo
+
+# secret channel mode
+geoIP: true
+# It is necessary when you use secret channel mode,
+# you need to make geoIP True.
+# When you don't need secret channel mode,
+# you don't need to care about it,
+# just make geoIP False
+geoIPDatabaseFilePath: /home/sherlock/Downloads/GeoLite2-City.mmdb
 ```
