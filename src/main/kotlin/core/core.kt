@@ -16,6 +16,7 @@ import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.logging.Logger
@@ -307,8 +308,8 @@ class Server(ss2socks: ServerConfig) {
                     backEndSocketChannel.aWrite(plainWriteBuffer)
                     plainWriteBuffer.clear()
                 }
-            } catch (e: Throwable) {
-                logger.warning("sslocal -> ss2socks -> China : $e")
+            } catch (e: AsynchronousCloseException) {
+                logger.warning("sslocal -> ss2socks -> China : connect reset by peer")
             } finally {
                 client.close()
                 backEndSocketChannel.close()
@@ -353,8 +354,8 @@ class Server(ss2socks: ServerConfig) {
                     client.aWrite(cipherWriteBuffer)
                     cipherWriteBuffer.clear()
                 }
-            } catch (e: Throwable) {
-                logger.warning("Cina -> ss2socks > sslocal : $e")
+            } catch (e: AsynchronousCloseException) {
+                logger.warning("Cina -> ss2socks > sslocal : connect reset by peer")
             } finally {
                 client.close()
                 backEndSocketChannel.close()
@@ -564,8 +565,8 @@ class Server(ss2socks: ServerConfig) {
                     backEndSocketChannel.aWrite(plainWriteBuffer)
                     plainWriteBuffer.clear()
                 }
-            } catch (e: Throwable) {
-                logger.warning("sslocal -> ss2socks -> backEnd : $e")
+            } catch (e: AsynchronousCloseException) {
+                logger.warning("sslocal -> ss2socks -> backEnd : connect reset by peer")
             } finally {
                 client.close()
                 backEndSocketChannel.close()
@@ -610,8 +611,8 @@ class Server(ss2socks: ServerConfig) {
                     client.aWrite(cipherWriteBuffer)
                     cipherWriteBuffer.clear()
                 }
-            } catch (e: Throwable) {
-                logger.warning("backEnd -> ss2socks > sslocal : $e")
+            } catch (e: AsynchronousCloseException) {
+                logger.warning("backEnd -> ss2socks > sslocal : connect reset by peer")
             } finally {
                 client.close()
                 backEndSocketChannel.close()
