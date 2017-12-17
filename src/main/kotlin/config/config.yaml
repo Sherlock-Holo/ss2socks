@@ -6,9 +6,9 @@ password: holo
 
 # secret channel mode
 geoIP: true
-# It is necessary when you use secret channel
-# mode, you need to make geoIP True.
+# It is necessary when you use secret channel mode,
+# you need to make geoIP True.
 # When you don't need secret channel mode,
-# you don't need to care about it, just
-# make geoIP False
+# you don't need to care about it,
+# just make geoIP False
 geoIPDatabaseFilePath: /home/sherlock/Downloads/GeoLite2-City.mmdb
