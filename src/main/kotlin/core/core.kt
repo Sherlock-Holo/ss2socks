@@ -285,7 +285,7 @@ class Server(ss2socks: ServerConfig) {
 
                     // expend buffer size
                     if (haveRead == bufferSize) {
-                        if (times < 3) {
+                        if (times < 2) {
                             times++
                         } else {
                             bufferSize *= 2
@@ -542,7 +542,7 @@ class Server(ss2socks: ServerConfig) {
 
                     // expend buffer size
                     if (haveRead == bufferSize) {
-                        if (times < 3) {
+                        if (times < 2) {
                             times++
                         } else {
                             bufferSize *= 2
