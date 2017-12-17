@@ -12,9 +12,14 @@ class Config(file: File) {
 
     fun getConfig(): ServerConfig {
         if (yamlConfig["geoIP"] as Boolean) {
-            return ServerConfig(yamlConfig["ssAddr"] as String, yamlConfig["ssPort"] as Int, yamlConfig["backEndAddr"] as String, yamlConfig["backEndPort"] as Int, yamlConfig["password"] as String, yamlConfig["geoIP"] as Boolean, yamlConfig["geoIPDatabaseFilePath"] as String)
+            return ServerConfig(yamlConfig["ssAddr"] as String, yamlConfig["ssPort"] as Int,
+                    yamlConfig["backEndAddr"] as String, yamlConfig["backEndPort"] as Int,
+                    yamlConfig["password"] as String, yamlConfig["geoIP"] as Boolean, yamlConfig["geoIPDatabaseFilePath"] as String)
         }
-        return ServerConfig(yamlConfig["ssAddr"] as String, yamlConfig["ssPort"] as Int, yamlConfig["backEndAddr"] as String, yamlConfig["backEndPort"] as Int, yamlConfig["password"] as String, yamlConfig["geoIP"] as Boolean, null)
+
+        return ServerConfig(yamlConfig["ssAddr"] as String, yamlConfig["ssPort"] as Int,
+                yamlConfig["backEndAddr"] as String, yamlConfig["backEndPort"] as Int, yamlConfig["password"] as String,
+                yamlConfig["geoIP"] as Boolean, null)
     }
 
 }

@@ -8,20 +8,19 @@ import java.net.InetAddress
 import kotlin.collections.HashMap
 
 
-class GeoIP(filePath: String?) {
+open class GeoIP(filePath: String?) {
     private lateinit var dataBaseFile: File
-    private var reader: DatabaseReader?
+    private val reader: DatabaseReader?
     private val cache = HashMap<String, String>()
 
     init {
-        reader = null
         if (filePath != null) {
             dataBaseFile = File(filePath)
-            if (dataBaseFile.exists()) reader = DatabaseReader.Builder(dataBaseFile).build()
-        }
+            reader = DatabaseReader.Builder(dataBaseFile).build()
+        } else reader = null
     }
 
-    fun getIPCountry(rawIP: ByteArray): String? {
+    open fun getIPCountry(rawIP: ByteArray): String? {
         if (reader == null) return null
 
         val ip = InetAddress.getByAddress(rawIP).hostAddress
@@ -29,7 +28,7 @@ class GeoIP(filePath: String?) {
 
         val response: CityResponse
         try {
-            response = reader!!.city(InetAddress.getByAddress(rawIP))
+            response = reader.city(InetAddress.getByAddress(rawIP))
         } catch (e: AddressNotFoundException) {
             return null
         }

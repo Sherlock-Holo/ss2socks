@@ -1,6 +1,7 @@
 package core
 
 import config.Config
+import config.ServerConfig
 import libs.encrypt.AES256CTR
 import libs.encrypt.password2key
 import kotlinx.coroutines.experimental.async
@@ -10,6 +11,7 @@ import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
 import libs.TCPPort.GetPort
+import libs.geoIP.GeoIP
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -21,12 +23,28 @@ import kotlin.system.exitProcess
 
 val logger = Logger.getLogger("ss2socks logger")!!
 
-class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, private val backEndPort: Int, password: String) {
+class Server(ss2socks: ServerConfig) {
+    private val ssAddr = ss2socks.ssAddr
+    private val ssPort = ss2socks.ssPort
+    private val backEndAddr = ss2socks.backEndAddr
+    private val backEndPort = ss2socks.backEndPort
     private val serverChannel = AsynchronousServerSocketChannel.open()
-    private val key = password2key(password)
+    private val key = password2key(ss2socks.password)
     private val defaultBufferSize = 4096
+    private val useGeoip = ss2socks.secretChannel
+    private val geoip: GeoIP
+
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
+        if (useGeoip) {
+            logger.info("use geoip")
+            logger.info(ss2socks.geoIPDataBaseFilePath!!)
+            geoip = GeoIP(ss2socks.geoIPDataBaseFilePath)
+        }
+        else {
+            logger.info("don't use geoip")
+            geoip = GeoIP(null)
+        }
     }
 
     suspend fun runForever() {
@@ -39,15 +57,14 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
     }
 
     suspend private fun handle(client: AsynchronousSocketChannel) {
-        var cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
-        var cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-        var plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-        var plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
+        val cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
+        val cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+        val plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+        val plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
 
-        var readCipher = AES256CTR(key)
-        var writeCipher =  AES256CTR(key)
+        val readCipher: AES256CTR
 
         try {
             var ssCanRead = 0
@@ -90,7 +107,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
+                    logger.info("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
                 }
 
                 3 -> {
@@ -119,7 +136,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.fine("addr: ${String(addr)}, TCPPort: ${GetPort(port)}")
+                    logger.info("addr: ${String(addr)}, TCPPort: ${GetPort(port)}")
                 }
 
                 4 -> {
@@ -134,7 +151,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
 
-                    logger.fine("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
+                    logger.info("addr: ${InetAddress.getByAddress(addr).hostAddress}, TCPPort: ${GetPort(port)}")
                 }
 
                 else -> {
@@ -149,157 +166,354 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
             // ready to relay
             cipherReadBuffer.compact()
 
-            // connect to backEnd
-            backEndSocketChannel.aConnect(InetSocketAddress(backEndAddr, backEndPort))
-            logger.fine("connected to back end server")
-
-            // socks5 version request
-            plainWriteBuffer.put(byteArrayOf(5, 1, 0))
-            plainWriteBuffer.flip()
-            backEndSocketChannel.aWrite(plainWriteBuffer)
-            plainWriteBuffer.clear()
-
-            var backEndCanRead = 0
-
-            // read method
-            while (backEndCanRead < 2) {
-                backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
-            }
-            plainReadBuffer.flip()
-            val method = ByteArray(2)
-            plainReadBuffer.get(method)
-
-            plainReadBuffer.clear()
-
-            if (method[0].toInt() != 5) {
-                logger.warning("socks version is not 5")
-                client.close()
-                backEndSocketChannel.close()
-                readCipher.finish()
-                return
-            }
-
-            if (method[1].toInt() != 0) {
-                logger.warning("auth is not No-auth")
-                client.close()
-                backEndSocketChannel.close()
-                readCipher.finish()
-                return
-            }
-
-            logger.fine("use no auth mode")
-
-            // send request
-            plainWriteBuffer.put(byteArrayOf(5, 1, 0, atyp.toByte()))
-
-            if (atyp == 3) plainWriteBuffer.put(addrLen.toByte())
-
-            plainWriteBuffer.put(addr)
-            plainWriteBuffer.put(port)
-            plainWriteBuffer.flip()
-
-            backEndSocketChannel.aWrite(plainWriteBuffer)
-
-            // ready to relay
-            plainWriteBuffer.clear()
-
-            // recv reply
-            while (backEndCanRead < 2 + 4) {
-                backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
-            }
-            plainReadBuffer.flip()
-
-            val repliesCheck = ByteArray(4)
-            plainReadBuffer.get(repliesCheck)
-
-            plainReadBuffer.compact()
-
-            if (repliesCheck[1].toInt() != 0) {
-                logger.warning("rep is not 0")
-                client.close()
-                backEndSocketChannel.close()
-                readCipher.finish()
-                return
-            }
-
-            var bindAddr = ByteArray(4)
-            val bindPort = ByteArray(2)
-
-            logger.fine("bind atyp: ${repliesCheck[3].toInt()}")
-
-            when (repliesCheck[3].toInt()) {
+            when (atyp) {
                 1 -> {
-                    while (backEndCanRead < 2 + 4 + 6) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                    if (!geoip.isChinaIP(addr)) {
+                        logger.info("target is not China IP")
+                        async {
+                            notChina(
+                                    atyp, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                    plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer)
+                        }
+                    } else {
+                        logger.info("target is China IP")
+                        async {
+                            isChina(
+                                    addr, port, client, backEndSocketChannel, cipherReadBuffer, plainWriteBuffer,
+                                    readCipher, plainReadBuffer, cipherWriteBuffer)
+                        }
                     }
-                    plainReadBuffer.flip()
-                    plainReadBuffer.get(bindAddr)
-                    plainReadBuffer.get(bindPort)
-                    logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
                 }
 
                 3 -> {
-                    while (backEndCanRead < 2 + 4 + 1) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                    addr = InetAddress.getByName(String(addr)).address
+                    if (!geoip.isChinaIP(addr)) {
+                        logger.info("target domain name is not in China, it is ${InetAddress.getByAddress(addr).hostAddress}")
+                        async {
+                            notChina(
+                                    atyp, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                    plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer
+                            )
+                        }
+                    } else {
+                        logger.info("target domain name is in China")
+                        async {
+                            isChina(
+                                    addr, port, client, backEndSocketChannel, cipherReadBuffer, plainWriteBuffer,
+                                    readCipher, plainReadBuffer, cipherWriteBuffer
+                            )
+                        }
                     }
-                    plainReadBuffer.flip()
-                    val bindAddrLen = plainReadBuffer.get().toInt()
-                    logger.fine("bind addr length: $bindAddr")
-                    plainReadBuffer.compact()
-
-                    while (backEndCanRead < 2 + 4 + 1 + bindAddrLen + 2) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
-                    }
-                    plainReadBuffer.flip()
-                    bindAddr = ByteArray(bindAddrLen)
-                    plainReadBuffer.get(bindAddr)
-                    plainReadBuffer.get(bindPort)
-                    logger.fine("bind addr: ${String(bindAddr)}, TCPPort: ${GetPort(bindPort)}")
                 }
-
+                
                 4 -> {
-                    while (backEndCanRead < 2 + 4 + 16 + 2) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                    async {
+                        logger.info("target is IPv6")
+                        notChina(
+                                atyp, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer)
                     }
-                    plainReadBuffer.flip()
-                    bindAddr = ByteArray(16)
-                    plainReadBuffer.get(bindAddr)
-                    plainReadBuffer.get(bindPort)
-                    logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
-                }
-
-                else -> {
-                    logger.warning("other atyp we don't know")
-                    client.close()
-                    backEndSocketChannel.close()
-                    readCipher.finish()
-                    return
                 }
             }
 
-            writeCipher = AES256CTR(key)
-            val writeIv = writeCipher.getIVorNonce()!!
 
-            // ready to relay
-            plainReadBuffer.clear()
 
-            // send IV of ss2socks -> sslocal
-            cipherWriteBuffer.put(writeIv)
-            cipherWriteBuffer.flip()
 
-            client.aWrite(cipherWriteBuffer)
-
-            // ready to relay
-            cipherWriteBuffer.clear()
         } catch (e: Throwable) {
             client.close()
             backEndSocketChannel.close()
             logger.warning(e.toString())
             return
         }
+    }
+
+    suspend private fun isChina(
+            addr: ByteArray, port: ByteArray, client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
+            cipherReadBuffer: ByteBuffer, plainWriteBuffer: ByteBuffer,
+            readCipher: AES256CTR, plainReadBuffer: ByteBuffer, cipherWriteBuffer: ByteBuffer) {
+        var cipherReadBuffer = cipherReadBuffer
+        var plainWriteBuffer = plainWriteBuffer
+        var plainReadBuffer = plainReadBuffer
+        var cipherWriteBuffer = cipherWriteBuffer
+        val writeCipher = AES256CTR(key)
+
+        // connect to China server
+        backEndSocketChannel.aConnect(InetSocketAddress(InetAddress.getByAddress(addr), GetPort(port)))
+        logger.fine("connected to China server")
+
+        val writeIv = writeCipher.getIVorNonce()!!
+
+        // ready to relay
+        plainReadBuffer.clear()
+
+        // send IV of ss2socks -> sslocal
+        cipherWriteBuffer.put(writeIv)
+        cipherWriteBuffer.flip()
+
+        client.aWrite(cipherWriteBuffer)
+
+        // ready to relay
+        cipherWriteBuffer.clear()
+
+        // sslocal -> ss2socks -> China
+        logger.fine("start relay to China")
+        async {
+            var bufferSize = defaultBufferSize
+            var times = 0
+            var haveRead: Int
+            try {
+                if (cipherReadBuffer.position() != 0) {
+                    cipherReadBuffer.flip()
+                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
+                    cipherReadBuffer.clear()
+                    plainWriteBuffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer)
+                    plainWriteBuffer.clear()
+                }
+
+                while (true) {
+                    haveRead = client.aRead(cipherReadBuffer)
+                    if (haveRead <= 0) {
+                        break
+                    }
+
+                    // expend buffer size
+                    if (haveRead == bufferSize) {
+                        if (times < 3) {
+                            times++
+                        } else {
+                            bufferSize *= 2
+                            cipherReadBuffer.flip()
+                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
+                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
+                            times = 0
+                            logger.info("expend buffer size to $bufferSize")
+                        }
+                    } else {
+                        times--
+                        if (times < 0) times = 0
+                    }
+
+                    cipherReadBuffer.flip()
+                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
+                    cipherReadBuffer.clear()
+                    plainWriteBuffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer)
+                    plainWriteBuffer.clear()
+                }
+            } catch (e: Throwable) {
+                logger.warning("sslocal -> ss2socks -> China : $e")
+            } finally {
+                client.close()
+                backEndSocketChannel.close()
+                readCipher.finish()
+                writeCipher.finish()
+            }
+        }
+
+        // China -> ss2socks > sslocal
+        logger.fine("start relay back to sslocal")
+        async {
+            var bufferSize = defaultBufferSize
+            var times = 0
+            var haveRead: Int
+            try {
+                while (true) {
+                    haveRead = backEndSocketChannel.aRead(plainReadBuffer)
+                    if (haveRead <= 0) {
+                        break
+                    }
+
+                    if (haveRead == bufferSize) {
+                        if (times < 3) {
+                            times++
+                        } else {
+                            bufferSize *= 2
+                            plainReadBuffer.flip()
+                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
+                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
+                            times = 0
+                            logger.info("expend buffer size to $bufferSize")
+                        }
+                    } else {
+                        times--
+                        if (times < 0) times = 0
+                    }
+
+                    plainReadBuffer.flip()
+                    writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
+                    plainReadBuffer.clear()
+                    cipherWriteBuffer.flip()
+                    client.aWrite(cipherWriteBuffer)
+                    cipherWriteBuffer.clear()
+                }
+            } catch (e: Throwable) {
+                logger.warning("Cina -> ss2socks > sslocal : $e")
+            } finally {
+                client.close()
+                backEndSocketChannel.close()
+                readCipher.finish()
+                writeCipher.finish()
+            }
+        }
+    }
+
+    suspend private fun notChina(
+            atyp: Int, addrLen: Int, addr: ByteArray, port: ByteArray,
+            client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
+            cipherReadBuffer: ByteBuffer, plainWriteBuffer: ByteBuffer, readCipher: AES256CTR,
+            plainReadBuffer: ByteBuffer, cipherWriteBuffer: ByteBuffer) {
+        var cipherReadBuffer = cipherReadBuffer
+        var plainWriteBuffer = plainWriteBuffer
+        var plainReadBuffer = plainReadBuffer
+        var cipherWriteBuffer = cipherWriteBuffer
+
+        // connect to backEnd
+        backEndSocketChannel.aConnect(InetSocketAddress(backEndAddr, backEndPort))
+        logger.fine("connected to backend server")
+
+        // socks5 version request
+        plainWriteBuffer.put(byteArrayOf(5, 1, 0))
+        plainWriteBuffer.flip()
+        backEndSocketChannel.aWrite(plainWriteBuffer)
+        plainWriteBuffer.clear()
+
+        var backEndCanRead = 0
+
+        // read method
+        while (backEndCanRead < 2) {
+            backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+        }
+        plainReadBuffer.flip()
+        val method = ByteArray(2)
+        plainReadBuffer.get(method)
+
+        plainReadBuffer.clear()
+
+        if (method[0].toInt() != 5) {
+            logger.warning("socks version is not 5")
+            client.close()
+            backEndSocketChannel.close()
+            readCipher.finish()
+            return
+        }
+
+        if (method[1].toInt() != 0) {
+            logger.warning("auth is not No-auth")
+            client.close()
+            backEndSocketChannel.close()
+            readCipher.finish()
+            return
+        }
+
+        logger.info("use no auth mode")
+
+        // send request
+        plainWriteBuffer.put(byteArrayOf(5, 1, 0, atyp.toByte()))
+
+        if (atyp == 3) plainWriteBuffer.put(addrLen.toByte())
+
+        plainWriteBuffer.put(addr)
+        logger.info("put addr: ${InetAddress.getByAddress(addr).hostAddress}")
+        plainWriteBuffer.put(port)
+        plainWriteBuffer.flip()
+
+        backEndSocketChannel.aWrite(plainWriteBuffer)
+
+        // ready to relay
+        plainWriteBuffer.clear()
+
+        // recv reply
+        while (backEndCanRead < 2 + 4) {
+            backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+        }
+        plainReadBuffer.flip()
+
+        val repliesCheck = ByteArray(4)
+        plainReadBuffer.get(repliesCheck)
+
+        plainReadBuffer.compact()
+
+        if (repliesCheck[1].toInt() != 0) {
+            logger.warning("rep is not 0")
+            client.close()
+            backEndSocketChannel.close()
+            readCipher.finish()
+            return
+        }
+
+        var bindAddr = ByteArray(4)
+        val bindPort = ByteArray(2)
+
+        logger.info("bind atyp: ${repliesCheck[3].toInt()}")
+
+        when (repliesCheck[3].toInt()) {
+            1 -> {
+                while (backEndCanRead < 2 + 4 + 6) {
+                    backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                }
+                plainReadBuffer.flip()
+                plainReadBuffer.get(bindAddr)
+                plainReadBuffer.get(bindPort)
+                logger.info("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
+            }
+
+            3 -> {
+                while (backEndCanRead < 2 + 4 + 1) {
+                    backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                }
+                plainReadBuffer.flip()
+                val bindAddrLen = plainReadBuffer.get().toInt()
+                logger.fine("bind addr length: $bindAddr")
+                plainReadBuffer.compact()
+
+                while (backEndCanRead < 2 + 4 + 1 + bindAddrLen + 2) {
+                    backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                }
+                plainReadBuffer.flip()
+                bindAddr = ByteArray(bindAddrLen)
+                plainReadBuffer.get(bindAddr)
+                plainReadBuffer.get(bindPort)
+                logger.info("bind addr: ${String(bindAddr)}, TCPPort: ${GetPort(bindPort)}")
+            }
+
+            4 -> {
+                while (backEndCanRead < 2 + 4 + 16 + 2) {
+                    backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                }
+                plainReadBuffer.flip()
+                bindAddr = ByteArray(16)
+                plainReadBuffer.get(bindAddr)
+                plainReadBuffer.get(bindPort)
+                logger.info("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
+            }
+
+            else -> {
+                logger.warning("other atyp we don't know")
+                client.close()
+                backEndSocketChannel.close()
+                readCipher.finish()
+                return
+            }
+        }
+
+        val writeCipher = AES256CTR(key)
+        val writeIv = writeCipher.getIVorNonce()!!
+
+        // ready to relay
+        plainReadBuffer.clear()
+
+        // send IV of ss2socks -> sslocal
+        cipherWriteBuffer.put(writeIv)
+        cipherWriteBuffer.flip()
+
+        client.aWrite(cipherWriteBuffer)
+
+        // ready to relay
+        cipherWriteBuffer.clear()
 
         // sslocal -> ss2socks -> backEnd
-        logger.fine("start relay to backEnd")
+        logger.info("start relay to backEnd")
         async {
             var bufferSize = defaultBufferSize
             var times = 0
@@ -355,7 +569,7 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
         }
 
         // backEnd -> ss2socks > sslocal
-        logger.fine("start relay back to sslocal")
+        logger.info("start relay back to sslocal")
         async {
             var bufferSize = defaultBufferSize
             var times = 0
@@ -402,12 +616,15 @@ class Server(ssAddr: String, ssPort: Int, private val backEndAddr: String, priva
     }
 }
 
-fun main(args: Array<String>) = runBlocking<Unit> {
+fun main(args: Array<String>) = runBlocking {
     if (args.size != 2) {
-        if (args[0] != "-c") {
-            println("error args")
-            exitProcess(1)
-        }
+        println("error args")
+        exitProcess(1)
+    }
+
+    if (args[0] != "-c") {
+        println("error args")
+        exitProcess(1)
     }
 
     val configFile = File(args[1])
@@ -418,8 +635,7 @@ fun main(args: Array<String>) = runBlocking<Unit> {
 
     val ss2socksConfig = Config(configFile).getConfig()
 
-    val core = Server(ss2socksConfig.ssAddr, ss2socksConfig.ssPort, ss2socksConfig.backEndAddr, ss2socksConfig.backEndPort, ss2socksConfig.password)
-//    val core = Server("127.0.0.2", 1088, "127.0.0.2", 1888, "holo")
+    val core = Server(ss2socksConfig)
     logger.info("Start ss2socks service")
     logger.info("shadowsocks listen on ${ss2socksConfig.ssAddr}:${ss2socksConfig.ssPort}")
     logger.info("backEnd listen on ${ss2socksConfig.backEndAddr}:${ss2socksConfig.backEndPort}")
