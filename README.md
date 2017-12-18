@@ -27,7 +27,7 @@ or
 
 - Auto expand Buffer size
 
-- Secret channel
+- Security channel
 
 ### Notice
 shadowsocks encrypt mode is `aes-256-ctr`.
