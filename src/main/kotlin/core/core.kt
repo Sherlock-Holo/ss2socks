@@ -187,30 +187,30 @@ class Server(ss2socks: ServerConfig) {
                 }
 
                 3 -> {
-                    addr = InetAddress.getByName(String(addr)).address
-                    if (!geoip.isChinaIP(addr)) {
-                        logger.info("target domain name is not in China")
+                    val IPAddr = InetAddress.getByName(String(addr)).address
+                    if (!geoip.isChinaIP(IPAddr)) {
+                        logger.info("${String(addr)} is not in China: ${InetAddress.getByAddress(IPAddr).hostAddress}")
                         async {
-                            when (addr.size) {
+                            when (IPAddr.size) {
                                 4 -> {
                                     notChina(
-                                            1, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                            1, addrLen, IPAddr, port, client, backEndSocketChannel, cipherReadBuffer,
                                             plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer
                                     )
                                 }
                                 16 -> {
                                     notChina(
-                                            4, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
+                                            4, addrLen, IPAddr, port, client, backEndSocketChannel, cipherReadBuffer,
                                             plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer
                                     )
                                 }
                             }
                         }
                     } else {
-                        logger.info("target domain name is in China")
+                        logger.info("${String(addr)} is in China: ${InetAddress.getByAddress(IPAddr).hostAddress}")
                         async {
                             isChina(
-                                    addr, port, client, backEndSocketChannel, cipherReadBuffer, plainWriteBuffer,
+                                    IPAddr, port, client, backEndSocketChannel, cipherReadBuffer, plainWriteBuffer,
                                     readCipher, plainReadBuffer, cipherWriteBuffer
                             )
                         }
