@@ -170,14 +170,14 @@ class Server(ss2socks: ServerConfig) {
             when (atyp) {
                 1 -> {
                     if (!geoip.isChinaIP(addr)) {
-                        logger.info("target is not China IP")
+                        logger.info("${InetAddress.getByAddress(addr).hostAddress} is not China IP")
                         async {
                             notChina(
                                     atyp, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
                                     plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer)
                         }
                     } else {
-                        logger.info("target is China IP")
+                        logger.info("${InetAddress.getByAddress(addr).hostAddress} is China IP")
                         async {
                             isChina(
                                     addr, port, client, backEndSocketChannel, cipherReadBuffer, plainWriteBuffer,
@@ -219,7 +219,7 @@ class Server(ss2socks: ServerConfig) {
                 
                 4 -> {
                     async {
-                        logger.info("target is IPv6")
+                        logger.info("${InetAddress.getByAddress(addr).hostAddress} is IPv6")
                         notChina(
                                 atyp, addrLen, addr, port, client, backEndSocketChannel, cipherReadBuffer,
                                 plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer)
@@ -625,7 +625,7 @@ class Server(ss2socks: ServerConfig) {
 
 fun main(args: Array<String>) = runBlocking {
     if (args.size != 2) {
-        println("error args")
+        println("Usage: -c config.yaml")
         exitProcess(1)
     }
 
