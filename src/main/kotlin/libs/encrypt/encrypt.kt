@@ -32,7 +32,6 @@ fun password2key(passwd: String): ByteArray {
 class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCipher {
     private val cipher = Cipher.getInstance("AES/CTR/NoPadding")
     private val skey = SecretKeySpec(key, "AES")
-    lateinit var tmpBuffer: ByteArray
 
     init {
         if (iv != null) {
