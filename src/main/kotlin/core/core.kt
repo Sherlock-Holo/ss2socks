@@ -37,14 +37,14 @@ class Server(ss2socks: ServerConfig) {
 
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
-        if (useGeoip) {
-            logger.info("use geoip")
-            logger.info(ss2socks.geoIPDataBaseFilePath!!)
-            geoip = GeoIP(ss2socks.geoIPDataBaseFilePath)
+        geoip = if (useGeoip) {
+            logger.info("Use geoIP")
+            logger.info("geoIP path: ${ss2socks.geoIPDataBaseFilePath!!}")
+            GeoIP(ss2socks.geoIPDataBaseFilePath)
         }
         else {
-            logger.info("don't use geoip")
-            geoip = GeoIP(null)
+            logger.info("Don't use geoIP")
+            GeoIP(null)
         }
     }
 
