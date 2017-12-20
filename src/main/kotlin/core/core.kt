@@ -374,7 +374,7 @@ class Server(ss2socks: ServerConfig) {
                 logger.warning("Cina -> ss2socks > sslocal : connect reset by peer")
                 errorCloseConn += 0.5F
             } finally {
-                closedConn == 0.5F
+                closedConn += 0.5F
                 activeConn -= closedConn
                 logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
 
@@ -588,9 +588,9 @@ class Server(ss2socks: ServerConfig) {
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("sslocal -> ss2socks -> backEnd : connect reset by peer")
-                errorCloseConn++
+                errorCloseConn += 0.5F
             } finally {
-                closedConn++
+                closedConn += 0.5F
                 activeConn -= closedConn
                 logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
 
@@ -639,9 +639,9 @@ class Server(ss2socks: ServerConfig) {
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("backEnd -> ss2socks > sslocal : connect reset by peer")
-                errorCloseConn++
+                errorCloseConn += 0.5F
             } finally {
-                closedConn++
+                closedConn += 0.5F
                 activeConn -= closedConn
                 logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
 
