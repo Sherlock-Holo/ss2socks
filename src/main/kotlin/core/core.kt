@@ -35,6 +35,10 @@ class Server(ss2socks: ServerConfig) {
     private val useGeoip = ss2socks.secretChannel
     private val geoip: GeoIP
 
+    private var activeConn = 0
+    private var closedConn = 0
+    private var errorCloseConn = 0
+
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
         geoip = if (useGeoip) {
@@ -51,6 +55,8 @@ class Server(ss2socks: ServerConfig) {
     suspend fun runForever() {
         while (true) {
             val client = serverChannel.aAccept()
+            activeConn++
+            logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
             async {
                 handle(client)
             }
@@ -227,6 +233,11 @@ class Server(ss2socks: ServerConfig) {
                 }
             }
         } catch (e: Throwable) {
+            errorCloseConn++
+            closedConn++
+            activeConn -= closedConn
+            logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
+
             client.close()
             backEndSocketChannel.close()
             logger.warning(e.toString())
@@ -310,7 +321,12 @@ class Server(ss2socks: ServerConfig) {
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("sslocal -> ss2socks -> China : connect reset by peer")
+                errorCloseConn++
             } finally {
+                closedConn++
+                activeConn -= closedConn
+                logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
+
                 client.close()
                 backEndSocketChannel.close()
                 readCipher.finish()
@@ -356,7 +372,12 @@ class Server(ss2socks: ServerConfig) {
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("Cina -> ss2socks > sslocal : connect reset by peer")
+                errorCloseConn++
             } finally {
+                closedConn++
+                activeConn -= closedConn
+                logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
+
                 client.close()
                 backEndSocketChannel.close()
                 readCipher.finish()
@@ -567,7 +588,12 @@ class Server(ss2socks: ServerConfig) {
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("sslocal -> ss2socks -> backEnd : connect reset by peer")
+                errorCloseConn++
             } finally {
+                closedConn++
+                activeConn -= closedConn
+                logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
+
                 client.close()
                 backEndSocketChannel.close()
                 readCipher.finish()
@@ -613,7 +639,12 @@ class Server(ss2socks: ServerConfig) {
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("backEnd -> ss2socks > sslocal : connect reset by peer")
+                errorCloseConn++
             } finally {
+                closedConn++
+                activeConn -= closedConn
+                logger.info("active connection: $activeConn, closed connection: $closedConn, error-close connection: $errorCloseConn")
+
                 client.close()
                 backEndSocketChannel.close()
                 readCipher.finish()
