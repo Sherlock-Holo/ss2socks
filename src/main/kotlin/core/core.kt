@@ -184,7 +184,12 @@ class Server(ss2socks: ServerConfig) {
 
         when (atyp) {
             1 -> {
-                if (!geoip.isChinaIP(addr)) {
+                if (addr.contentEquals(InetAddress.getByName("8.8.8.8").address)) {
+                    logger.info("detect 8.8.8.8 DNS data, redirect to local DNS")
+                    isChina(
+                            InetAddress.getByName("127.0.0.1").address, port, client, backEndSocketChannel,
+                            cipherReadBuffer, plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer)
+                } else if (!geoip.isChinaIP(addr)) {
                     logger.info("${InetAddress.getByAddress(addr).hostAddress} is not China IP")
                     async {
                         notChina(
