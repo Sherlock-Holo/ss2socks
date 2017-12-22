@@ -1,7 +1,6 @@
 package core
 
-import config.Config
-import libs.encrypt.password2key
+import libs.config.Config
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.nio.aConnect
@@ -11,6 +10,7 @@ import kotlinx.coroutines.experimental.runBlocking
 import libs.AsynchronousSocketChannel.shutdownAll
 import libs.TCPPort.GetPort
 import libs.encrypt.Cipher
+import libs.encrypt.password2key
 import libs.geoIP.GeoIP
 import java.io.File
 import java.net.InetAddress
@@ -41,8 +41,7 @@ class Server(private val ss2socks: Config.TopConfig) {
             logger.info("Use geoIP")
             logger.info("geoIP path: ${ss2socks.securityChannel.GeoIPDatabaseFilePath}")
             GeoIP(ss2socks.securityChannel.GeoIPDatabaseFilePath)
-        }
-        else {
+        } else {
             logger.info("Don't use geoIP")
             GeoIP(null)
         }
@@ -686,7 +685,7 @@ class Server(private val ss2socks: Config.TopConfig) {
 
 fun main(args: Array<String>) = runBlocking {
     if (args.size != 2) {
-        println("Usage: -c config.yaml")
+        println("Usage: -c config.toml")
         exitProcess(1)
     }
 
