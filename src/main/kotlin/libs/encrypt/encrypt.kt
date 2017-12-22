@@ -17,10 +17,6 @@ class Cipher(key: ByteArray, iv: ByteArray? = null, cipherMode: String) {
         }
     }
 
-    fun getCipher(): GeneralCipher {
-        return inner
-    }
-
     fun encrypt(plainText: ByteArray) = inner.encrypt(plainText)
 
     fun encrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer) = inner.encrypt(plainBuffer, cipherBuffer)
