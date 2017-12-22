@@ -36,18 +36,19 @@ shadowsocks encrypt mode only support `aes-256-ctr` for now.
 
 ### Config file example
 ```
-ssAddr: 127.0.0.2
-ssPort: 1088
-backEndAddr: 127.0.0.2
-backEndPort: 1888
-password: holo
+[server]
+ssAddr = "127.0.0.2"
+ssPort = 1088
+backEndAddr = "127.0.0.2"
+backEndPort = 1888
 
-# secret channel mode
-geoIP: true
-# It is necessary when you use secret channel mode,
-# you need to make geoIP True.
-# When you don't need secret channel mode,
-# you don't need to care about it,
-# just make geoIP False
-geoIPDatabaseFilePath: /home/sherlock/Downloads/GeoLite2-City.mmdb
+[security]
+cipherMode = "aes-256-ctr"
+password = "holo"
+
+[securityChannel]
+# Make GeoIP true to use security channel mode,
+# and then set the GeoIPDatabaseFilePath.
+GeoIP = true
+GeoIPDatabaseFilePath = "/home/sherlock/Downloads/GeoLite2-City.mmdb"
 ```
