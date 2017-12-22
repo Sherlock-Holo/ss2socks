@@ -23,7 +23,6 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
-    compile 'org.yaml:snakeyaml:1.19'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.20'
     compile 'com.maxmind.geoip2:geoip2:2.10.0'
