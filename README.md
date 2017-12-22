@@ -14,13 +14,13 @@ So, this program will help me convert shadowsocks protocol back to socks5 and th
 |`shadowsocks-android`|shadowsocks protocol|`ss2socks`|socks protocol|`back end`|
 
 ### Usage
-`kotlin ss2socks.jar -c config.yaml`
+`kotlin ss2socks.jar -c config.toml`
 
 or
 
 (recommend because I found some problems on Arch with `kotlin`)
 
-`java -jar ss2socks.jar -c config.yaml`
+`java -jar ss2socks.jar -c config.toml`
 
 ### Feature
 - Coroutine support
