@@ -1,7 +1,6 @@
 package core
 
 import config.Config
-import config.ServerConfig
 import libs.encrypt.password2key
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aAccept
@@ -25,23 +24,23 @@ import kotlin.system.exitProcess
 
 val logger = Logger.getLogger("ss2socks logger")!!
 
-class Server(private val ss2socks: ServerConfig) {
-    private val ssAddr = ss2socks.ssAddr
-    private val ssPort = ss2socks.ssPort
-    private val backEndAddr = ss2socks.backEndAddr
-    private val backEndPort = ss2socks.backEndPort
+class Server(private val ss2socks: Config.TopConfig) {
+    private val ssAddr = ss2socks.server.ssAddr
+    private val ssPort = ss2socks.server.ssPort
+    private val backEndAddr = ss2socks.server.backEndAddr
+    private val backEndPort = ss2socks.server.backEndPort
     private val serverChannel = AsynchronousServerSocketChannel.open()
-    private val key = password2key(ss2socks.password)
+    private val key = password2key(ss2socks.security.password)
     private val defaultBufferSize = 4096
-    private val useGeoip = ss2socks.secretChannel
+    private val useGeoip = ss2socks.securityChannel.GeoIP
     private val geoip: GeoIP
 
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
         geoip = if (useGeoip) {
             logger.info("Use geoIP")
-            logger.info("geoIP path: ${ss2socks.geoIPDataBaseFilePath!!}")
-            GeoIP(ss2socks.geoIPDataBaseFilePath)
+            logger.info("geoIP path: ${ss2socks.securityChannel.GeoIPDatabaseFilePath}")
+            GeoIP(ss2socks.securityChannel.GeoIPDatabaseFilePath)
         }
         else {
             logger.info("Don't use geoIP")
@@ -86,7 +85,7 @@ class Server(private val ss2socks: ServerConfig) {
             cipherReadBuffer.compact()
             cipherReadBuffer.flip()
 
-            readCipher = Cipher(key, readIv, ss2socks.cipherMode)
+            readCipher = Cipher(key, readIv, ss2socks.security.cipherMode)
 
             var rawatyp = ByteArray(1)
             cipherReadBuffer.get(rawatyp)
@@ -255,7 +254,7 @@ class Server(private val ss2socks: ServerConfig) {
         var plainWriteBuffer = rawPlainWriteBuffer
         var plainReadBuffer = rawPlainReadBuffer
         var cipherWriteBuffer = rawCipherWriteBuffer
-        val writeCipher = Cipher(key, cipherMode = ss2socks.cipherMode)
+        val writeCipher = Cipher(key, cipherMode = ss2socks.security.cipherMode)
 
         // connect to China server
         try {
@@ -552,7 +551,7 @@ class Server(private val ss2socks: ServerConfig) {
             return
         }
 
-        val writeCipher = Cipher(key, cipherMode = ss2socks.cipherMode)
+        val writeCipher = Cipher(key, cipherMode = ss2socks.security.cipherMode)
 //        val writeIv = writeCipher.getIVorNonce()!!
 
         // ready to relay
@@ -706,7 +705,7 @@ fun main(args: Array<String>) = runBlocking {
 
     val core = Server(ss2socksConfig)
     logger.info("Start ss2socks service")
-    logger.info("shadowsocks listen on ${ss2socksConfig.ssAddr}:${ss2socksConfig.ssPort}")
-    logger.info("backEnd listen on ${ss2socksConfig.backEndAddr}:${ss2socksConfig.backEndPort}")
+    logger.info("shadowsocks listen on ${ss2socksConfig.server.ssAddr}:${ss2socksConfig.server.ssPort}")
+    logger.info("backEnd listen on ${ss2socksConfig.server.backEndAddr}:${ss2socksConfig.server.backEndPort}")
     core.runForever()
 }
