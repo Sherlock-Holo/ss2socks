@@ -38,11 +38,11 @@ class Server(private val ss2socks: Config.TopConfig) {
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
         geoip = if (useGeoip) {
-            logger.info("Use geoIP")
-            logger.info("geoIP path: ${ss2socks.securityChannel.GeoIPDatabaseFilePath}")
+            logger.info("Use GeoIP")
+            logger.info("GeoIP path: ${ss2socks.securityChannel.GeoIPDatabaseFilePath}")
             GeoIP(ss2socks.securityChannel.GeoIPDatabaseFilePath)
         } else {
-            logger.info("Don't use geoIP")
+            logger.info("Don't use GeoIP")
             GeoIP(null)
         }
     }
