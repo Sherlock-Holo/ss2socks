@@ -2,7 +2,6 @@ package core
 
 import config.Config
 import config.ServerConfig
-import libs.encrypt.AES256CTR
 import libs.encrypt.password2key
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aAccept
@@ -12,6 +11,7 @@ import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
 import libs.AsynchronousSocketChannel.shutdownAll
 import libs.TCPPort.GetPort
+import libs.encrypt.Cipher
 import libs.geoIP.GeoIP
 import java.io.File
 import java.net.InetAddress
@@ -21,12 +21,11 @@ import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.logging.Logger
-import kotlin.math.log
 import kotlin.system.exitProcess
 
 val logger = Logger.getLogger("ss2socks logger")!!
 
-class Server(ss2socks: ServerConfig) {
+class Server(private val ss2socks: ServerConfig) {
     private val ssAddr = ss2socks.ssAddr
     private val ssPort = ss2socks.ssPort
     private val backEndAddr = ss2socks.backEndAddr
@@ -67,7 +66,7 @@ class Server(ss2socks: ServerConfig) {
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
 
-        val readCipher: AES256CTR
+        val readCipher: Cipher
 
         val atyp: Int
         var addrLen: Int
@@ -87,7 +86,7 @@ class Server(ss2socks: ServerConfig) {
             cipherReadBuffer.compact()
             cipherReadBuffer.flip()
 
-            readCipher = AES256CTR(key, readIv)
+            readCipher = Cipher(key, readIv, ss2socks.cipherMode)
 
             var rawatyp = ByteArray(1)
             cipherReadBuffer.get(rawatyp)
@@ -251,12 +250,12 @@ class Server(ss2socks: ServerConfig) {
     suspend private fun isChina(
             addr: ByteArray, port: ByteArray, client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
             rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer,
-            readCipher: AES256CTR, rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
+            readCipher: Cipher, rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
         var cipherReadBuffer = rawCipherReadBuffer
         var plainWriteBuffer = rawPlainWriteBuffer
         var plainReadBuffer = rawPlainReadBuffer
         var cipherWriteBuffer = rawCipherWriteBuffer
-        val writeCipher = AES256CTR(key)
+        val writeCipher = Cipher(key, cipherMode = ss2socks.cipherMode)
 
         // connect to China server
         try {
@@ -402,7 +401,7 @@ class Server(ss2socks: ServerConfig) {
     suspend private fun notChina(
             atyp: Int, addrLen: Int, addr: ByteArray, port: ByteArray,
             client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
-            rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer, readCipher: AES256CTR,
+            rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer, readCipher: Cipher,
             rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
 
         var cipherReadBuffer = rawCipherReadBuffer
@@ -553,7 +552,7 @@ class Server(ss2socks: ServerConfig) {
             return
         }
 
-        val writeCipher = AES256CTR(key)
+        val writeCipher = Cipher(key, cipherMode = ss2socks.cipherMode)
 //        val writeIv = writeCipher.getIVorNonce()!!
 
         // ready to relay
