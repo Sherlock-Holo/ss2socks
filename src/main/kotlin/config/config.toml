@@ -1,0 +1,13 @@
+[server]
+ssAddr = "127.0.0.2"
+ssPort = 1088
+backEndAddr = "127.0.0.2"
+backEndPort = 1888
+
+[security]
+cipherMode = "aes-256-ctr"
+password = "holo"
+
+[securityChannel]
+GeoIP = true
+GeoIPDatabaseFilePath = "/home/sherlock/Downloads/GeoLite2-City.mmdb"
