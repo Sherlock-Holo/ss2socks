@@ -30,7 +30,7 @@ class Config(file: File) {
 
     class SecurityChannel {
         var GeoIP = false
-        lateinit var GeoIPDatabaseFilePath: String
+        var GeoIPDatabaseFilePath: String? = null
     }
 
     fun getConfig(): TopConfig {
@@ -40,5 +40,5 @@ class Config(file: File) {
 
 fun main(args: Array<String>) {
     val tomlConfig = Config(File("/home/sherlock/git/ss2socks/src/main/kotlin/config/config.toml")).getConfig()
-    println(tomlConfig.security.cipherMode)
+    println(tomlConfig.securityChannel.GeoIPDatabaseFilePath)
 }
