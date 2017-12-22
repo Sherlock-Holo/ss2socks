@@ -9,5 +9,7 @@ cipherMode = "aes-256-ctr"
 password = "holo"
 
 [securityChannel]
+# Make GeoIP true to use security channel mode,
+# and then set the GeoIPDatabaseFilePath.
 GeoIP = true
 GeoIPDatabaseFilePath = "/home/sherlock/Downloads/GeoLite2-City.mmdb"

@@ -1,4 +1,4 @@
-package config
+package libs.config
 
 import com.moandjiezana.toml.Toml
 import java.io.File
@@ -36,9 +36,4 @@ class Config(file: File) {
     fun getConfig(): TopConfig {
         return config
     }
-}
-
-fun main(args: Array<String>) {
-    val tomlConfig = Config(File("/home/sherlock/git/ss2socks/src/main/kotlin/config/config.toml")).getConfig()
-    println(tomlConfig.securityChannel.GeoIPDatabaseFilePath)
 }
