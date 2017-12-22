@@ -6,9 +6,37 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-private interface GeneralCipher {
-    // maybe some libs.encrypt module doesn't use IV or Nonce
-    fun getIVorNonce(): ByteArray?
+class Cipher(key: ByteArray, iv: ByteArray? = null, cipherMode: String) {
+    private val inner: GeneralCipher
+    init {
+        when (cipherMode) {
+            "aes-256-ctr" -> {
+                inner = AES256CTR(key, iv)
+            }
+            else -> TODO("support other cipher mode")
+        }
+    }
+
+    fun getCipher(): GeneralCipher {
+        return inner
+    }
+
+    fun encrypt(plainText: ByteArray) = inner.encrypt(plainText)
+
+    fun encrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer) = inner.encrypt(plainBuffer, cipherBuffer)
+
+    fun decrypt(cipherText: ByteArray) = inner.decrypt(cipherText)
+
+    fun decrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer) = inner.decrypt(cipherBuffer, plainBuffer)
+
+    fun finish() = inner.finish()
+
+    fun getIVorNonce() = inner.getIVorNonce()
+}
+
+interface GeneralCipher {
+    // maybe some encrypt module doesn't use IV or Nonce
+    fun getIVorNonce(): ByteArray? = null
 
     fun encrypt(plainText: ByteArray): ByteArray
 
@@ -17,6 +45,8 @@ private interface GeneralCipher {
     fun encrypt(plainBuffer: ByteBuffer, cipherBuffer: ByteBuffer)
 
     fun decrypt(cipherBuffer: ByteBuffer, plainBuffer: ByteBuffer)
+
+    fun finish()
 }
 
 fun password2key(passwd: String): ByteArray {
@@ -29,7 +59,7 @@ fun password2key(passwd: String): ByteArray {
     return encodeKey
 }
 
-class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCipher {
+private class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCipher {
     private val cipher = Cipher.getInstance("AES/CTR/NoPadding")
     private val skey = SecretKeySpec(key, "AES")
 
@@ -62,7 +92,7 @@ class AES256CTR(key: ByteArray, private var iv: ByteArray? = null): GeneralCiphe
         cipher.update(cipherBuffer, plainBuffer)
     }
 
-    fun finish() {
+    override fun finish() {
         cipher.doFinal()
     }
 }
