@@ -32,7 +32,7 @@ or
 - Google DNS redirect to local DNS(127.0.0.1:53), you need to solve DNS pollution by yourself
 
 ### Notice
-shadowsocks encrypt mode is `aes-256-ctr`.
+shadowsocks encrypt mode only support `aes-256-ctr` for now.
 
 ### Config file example
 ```
