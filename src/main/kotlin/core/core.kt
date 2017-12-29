@@ -15,6 +15,7 @@ import libs.geoIP.GeoIP
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.StandardSocketOptions
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.AsynchronousServerSocketChannel
@@ -50,6 +51,9 @@ class Server(private val ss2socks: Config.TopConfig) {
     suspend fun runForever() {
         while (true) {
             val client = serverChannel.aAccept()
+            client.setOption(StandardSocketOptions.TCP_NODELAY, true)
+            client.setOption(StandardSocketOptions.SO_KEEPALIVE, true)
+            client.setOption(StandardSocketOptions.SO_REUSEPORT, true)
             async {
                 handle(client)
             }
