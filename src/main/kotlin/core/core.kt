@@ -31,13 +31,13 @@ class Server(private val ss2socks: Config.TopConfig) {
     private val backEndPort = ss2socks.server.backEndPort
     private val serverChannel = AsynchronousServerSocketChannel.open()
     private val key = password2key(ss2socks.security.password)
-    private val defaultBufferSize = 4096
-    private val useGeoip = ss2socks.securityChannel.GeoIP
-    private val geoip: GeoIP
+    private val defaultBufferSize = 8192
+    private val useGeoIP = ss2socks.securityChannel.GeoIP
+    private val geoIP: GeoIP
 
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
-        geoip = if (useGeoip) {
+        geoIP = if (useGeoIP) {
             logger.info("Use GeoIP")
             logger.info("GeoIP path: ${ss2socks.securityChannel.GeoIPDatabaseFilePath}")
             GeoIP(ss2socks.securityChannel.GeoIPDatabaseFilePath)
@@ -186,7 +186,7 @@ class Server(private val ss2socks: Config.TopConfig) {
                     isChina(
                             InetAddress.getByName("127.0.0.1").address, port, client, backEndSocketChannel,
                             cipherReadBuffer, plainWriteBuffer, readCipher, plainReadBuffer, cipherWriteBuffer)
-                } else if (!geoip.isChinaIP(addr)) {
+                } else if (!geoIP.isChinaIP(addr)) {
                     logger.info("${InetAddress.getByAddress(addr).hostAddress} is not China IP")
                     async {
                         notChina(
@@ -205,7 +205,7 @@ class Server(private val ss2socks: Config.TopConfig) {
 
             3 -> {
                 val IPAddr = InetAddress.getByName(String(addr)).address
-                if (!geoip.isChinaIP(IPAddr)) {
+                if (!geoIP.isChinaIP(IPAddr)) {
                     logger.info("${String(addr)} is not in China: ${InetAddress.getByAddress(IPAddr).hostAddress}")
                     async {
                         when (IPAddr.size) {
