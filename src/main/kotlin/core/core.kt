@@ -365,7 +365,7 @@ class Server(private val ss2socks: Config.TopConfig) {
                     backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
                     plainWriteBuffer.buffer.clear()
                 }
-                
+
             } catch (e: AsynchronousCloseException) {
                 logger.warning("sslocal -> ss2socks -> China : connect reset by peer")
             } finally {
