@@ -25,11 +25,11 @@ or
 ### Feature
 - Coroutine support
 
-- Auto expand Buffer size
+- Direct ByteBuffer for better IO performance, and use buffer pool to reuse DirectByteBuffer
 
-- Security channel
+- Security channel: keep your data safety when you are in strange WiFi
 
-- Google DNS redirect to local DNS(127.0.0.1:53), you need to solve DNS pollution by yourself
+- Google DNS redirect to local DNS(127.0.0.1:53): avoid DNS pollution so you need a local DNS resolver a.g `dnsmasq`
 
 ### Notice
 shadowsocks encrypt mode only support `aes-256-ctr` for now.
