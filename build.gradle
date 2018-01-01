@@ -1,5 +1,5 @@
 group 'ss2socks'
-version '0.5'
+version '0.6'
 
 buildscript {
     ext.kotlin_version = '1.2.10'
@@ -23,8 +23,8 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.20'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.21'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.21'
     compile 'com.maxmind.geoip2:geoip2:2.10.0'
     compile 'com.moandjiezana.toml:toml4j:0.7.2'
 
