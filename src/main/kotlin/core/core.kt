@@ -1,6 +1,5 @@
 package core
 
-import libs.config.Config
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.nio.aConnect
@@ -9,21 +8,21 @@ import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
 import libs.AsynchronousSocketChannel.shutdownAll
 import libs.TCPPort.GetPort
+import libs.bufferPool.BufferPool
+import libs.config.Config
 import libs.encrypt.Cipher
 import libs.encrypt.password2key
 import libs.geoIP.GeoIP
+import libs.logger.logger
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.StandardSocketOptions
-import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
-import java.util.logging.Logger
 import kotlin.system.exitProcess
 
-val logger = Logger.getLogger("ss2socks logger")!!
 
 class Server(private val ss2socks: Config.TopConfig) {
     private val ssAddr = ss2socks.server.ssAddr
@@ -32,9 +31,9 @@ class Server(private val ss2socks: Config.TopConfig) {
     private val backEndPort = ss2socks.server.backEndPort
     private val serverChannel = AsynchronousServerSocketChannel.open()
     private val key = password2key(ss2socks.security.password)
-    private val defaultBufferSize = 8192
     private val useGeoIP = ss2socks.securityChannel.GeoIP
     private val geoIP: GeoIP
+    private val bufferPool = BufferPool()
 
     init {
         serverChannel.bind(InetSocketAddress(ssAddr, ssPort))
@@ -61,10 +60,15 @@ class Server(private val ss2socks: Config.TopConfig) {
     }
 
     suspend private fun handle(client: AsynchronousSocketChannel) {
-        val cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
-        val cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-        val plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-        val plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
+//        val cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
+//        val cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+//        val plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
+//        val plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
+
+        val cipherReadBuffer = bufferPool.get()
+        val cipherWriteBuffer = bufferPool.get()
+        val plainWriteBuffer = bufferPool.get()
+        val plainReadBuffer = bufferPool.get()
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
 
@@ -79,20 +83,20 @@ class Server(private val ss2socks: Config.TopConfig) {
             var ssCanRead = 0
             // read IV and atyp
             while (ssCanRead < 17) {
-                ssCanRead += client.aRead(cipherReadBuffer)
+                ssCanRead += client.aRead(cipherReadBuffer.buffer)
             }
-            cipherReadBuffer.flip()
+            cipherReadBuffer.buffer.flip()
 
             val readIv = ByteArray(16)
-            cipherReadBuffer.get(readIv)
-            cipherReadBuffer.compact()
-            cipherReadBuffer.flip()
+            cipherReadBuffer.buffer.get(readIv)
+            cipherReadBuffer.buffer.compact()
+            cipherReadBuffer.buffer.flip()
 
             readCipher = Cipher(key, readIv, ss2socks.security.cipherMode)
 
             var rawatyp = ByteArray(1)
-            cipherReadBuffer.get(rawatyp)
-            cipherReadBuffer.compact()
+            cipherReadBuffer.buffer.get(rawatyp)
+            cipherReadBuffer.buffer.compact()
             rawatyp = readCipher.decrypt(rawatyp)
 
             // get real atyp
@@ -106,12 +110,12 @@ class Server(private val ss2socks: Config.TopConfig) {
             when (atyp) {
                 1 -> {
                     while (ssCanRead < 17 + 4 + 2) {
-                        ssCanRead += client.aRead(cipherReadBuffer)
+                        ssCanRead += client.aRead(cipherReadBuffer.buffer)
                     }
-                    cipherReadBuffer.flip()
+                    cipherReadBuffer.buffer.flip()
 
-                    cipherReadBuffer.get(addr)
-                    cipherReadBuffer.get(port)
+                    cipherReadBuffer.buffer.get(addr)
+                    cipherReadBuffer.buffer.get(port)
 
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
@@ -121,26 +125,26 @@ class Server(private val ss2socks: Config.TopConfig) {
 
                 3 -> {
                     while (ssCanRead < 17 + 1) {
-                        ssCanRead += client.aRead(cipherReadBuffer)
+                        ssCanRead += client.aRead(cipherReadBuffer.buffer)
                     }
-                    cipherReadBuffer.flip()
+                    cipherReadBuffer.buffer.flip()
 
                     var rawAddrLen = ByteArray(1)
-                    cipherReadBuffer.get(rawAddrLen)
-                    cipherReadBuffer.compact()
+                    cipherReadBuffer.buffer.get(rawAddrLen)
+                    cipherReadBuffer.buffer.compact()
 
                     rawAddrLen = readCipher.decrypt(rawAddrLen)
                     addrLen = rawAddrLen[0].toInt() and 0xFF
                     logger.fine("addr len: $addrLen")
 
                     while (ssCanRead < 17 + 1 + addrLen) {
-                        ssCanRead += client.aRead(cipherReadBuffer)
+                        ssCanRead += client.aRead(cipherReadBuffer.buffer)
                     }
-                    cipherReadBuffer.flip()
+                    cipherReadBuffer.buffer.flip()
 
                     addr = ByteArray(addrLen)
-                    cipherReadBuffer.get(addr)
-                    cipherReadBuffer.get(port)
+                    cipherReadBuffer.buffer.get(addr)
+                    cipherReadBuffer.buffer.get(port)
 
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
@@ -150,12 +154,12 @@ class Server(private val ss2socks: Config.TopConfig) {
 
                 4 -> {
                     while (ssCanRead < 17 + 16 + 2) {
-                        ssCanRead += client.aRead(cipherReadBuffer)
+                        ssCanRead += client.aRead(cipherReadBuffer.buffer)
                     }
-                    cipherReadBuffer.flip()
+                    cipherReadBuffer.buffer.flip()
                     addr = ByteArray(16)
-                    cipherReadBuffer.get(addr)
-                    cipherReadBuffer.get(port)
+                    cipherReadBuffer.buffer.get(addr)
+                    cipherReadBuffer.buffer.get(port)
 
                     addr = readCipher.decrypt(addr)
                     port = readCipher.decrypt(port)
@@ -169,6 +173,12 @@ class Server(private val ss2socks: Config.TopConfig) {
                     backEndSocketChannel.shutdownAll()
                     client.close()
                     backEndSocketChannel.close()
+
+                    cipherReadBuffer.release()
+                    cipherWriteBuffer.release()
+                    plainWriteBuffer.release()
+                    plainReadBuffer.release()
+
                     readCipher.finish()
                     return
                 }
@@ -176,12 +186,18 @@ class Server(private val ss2socks: Config.TopConfig) {
         } catch (e: AsynchronousCloseException) {
             client.close()
             backEndSocketChannel.close()
+
+            cipherReadBuffer.release()
+            cipherWriteBuffer.release()
+            plainWriteBuffer.release()
+            plainReadBuffer.release()
+
             logger.warning("decode shadowsocks address info failed")
             return
         }
 
         // ready to relay
-        cipherReadBuffer.compact()
+        cipherReadBuffer.buffer.compact()
 
         when (atyp) {
             1 -> {
@@ -251,12 +267,12 @@ class Server(private val ss2socks: Config.TopConfig) {
 
     suspend private fun isChina(
             addr: ByteArray, port: ByteArray, client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
-            rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer,
-            readCipher: Cipher, rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
-        var cipherReadBuffer = rawCipherReadBuffer
-        var plainWriteBuffer = rawPlainWriteBuffer
-        var plainReadBuffer = rawPlainReadBuffer
-        var cipherWriteBuffer = rawCipherWriteBuffer
+            cipherReadBuffer: BufferPool.CustomBuffer, plainWriteBuffer: BufferPool.CustomBuffer,
+            readCipher: Cipher, plainReadBuffer: BufferPool.CustomBuffer, cipherWriteBuffer: BufferPool.CustomBuffer) {
+//        var cipherReadBuffer = cipherReadBuffer
+//        var plainWriteBuffer = plainWriteBuffer
+//        var plainReadBuffer = plainReadBuffer
+//        var cipherWriteBuffer = cipherWriteBuffer
         val writeCipher = Cipher(key, cipherMode = ss2socks.security.cipherMode)
 
         // connect to China server
@@ -266,86 +282,101 @@ class Server(private val ss2socks: Config.TopConfig) {
             client.shutdownAll()
             client.close()
             backEndSocketChannel.close()
+
+            cipherReadBuffer.release()
+            cipherWriteBuffer.release()
+            plainWriteBuffer.release()
+            plainReadBuffer.release()
+
             logger.warning("connect to China server: failed")
             return
         }
         logger.fine("connected to China server")
 
-//        val writeIv = writeCipher.getIVorNonce()!!
-
         // ready to relay
-        plainReadBuffer.clear()
+        plainReadBuffer.buffer.clear()
 
         // send IV of ss2socks -> sslocal
-        cipherWriteBuffer.put(writeCipher.getIVorNonce())
-        cipherWriteBuffer.flip()
+        cipherWriteBuffer.buffer.put(writeCipher.getIVorNonce())
+        cipherWriteBuffer.buffer.flip()
 
         try {
-            client.aWrite(cipherWriteBuffer)
+            client.aWrite(cipherWriteBuffer.buffer)
         } catch (e: AsynchronousCloseException) {
             client.close()
             backEndSocketChannel.shutdownAll()
             backEndSocketChannel.close()
+
+            cipherReadBuffer.release()
+            cipherWriteBuffer.release()
+            plainWriteBuffer.release()
+            plainReadBuffer.release()
+
             logger.warning("send write IV: failed")
             return
         }
 
         // ready to relay
-        cipherWriteBuffer.clear()
+        cipherWriteBuffer.buffer.clear()
 
         // sslocal -> ss2socks -> China
         logger.fine("start relay to China")
         async {
-            var bufferSize = defaultBufferSize
-            var times = 0
             var haveRead: Int
             try {
-                if (cipherReadBuffer.position() != 0) {
-                    cipherReadBuffer.flip()
-                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                    cipherReadBuffer.clear()
-                    plainWriteBuffer.flip()
-                    backEndSocketChannel.aWrite(plainWriteBuffer)
-                    plainWriteBuffer.clear()
+                if (cipherReadBuffer.buffer.position() != 0) {
+                    cipherReadBuffer.buffer.flip()
+                    readCipher.decrypt(cipherReadBuffer.buffer, plainWriteBuffer.buffer)
+                    cipherReadBuffer.buffer.clear()
+                    plainWriteBuffer.buffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
+                    plainWriteBuffer.buffer.clear()
                 }
 
                 while (true) {
-                    haveRead = client.aRead(cipherReadBuffer)
+                    haveRead = client.aRead(cipherReadBuffer.buffer)
                     if (haveRead <= 0) {
                         client.shutdownAll()
                         backEndSocketChannel.shutdownAll()
                         break
                     }
 
-                    // expend buffer size
-                    if (haveRead == bufferSize) {
-                        if (times < 2) {
-                            times++
-                        } else {
-                            bufferSize *= 2
-                            cipherReadBuffer.flip()
-                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
-                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
-                            times = 0
-                            logger.info("expend buffer size to $bufferSize")
-                        }
-                    } else {
-                        times--
-                        if (times < 0) times = 0
-                    }
+//                    // expend buffer size
+//                    if (haveRead == bufferSize) {
+//                        if (times < 2) {
+//                            times++
+//                        } else {
+//                            bufferSize *= 2
+//                            cipherReadBuffer.flip()
+//                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
+//                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
+//                            times = 0
+//                            logger.info("expend buffer size to $bufferSize")
+//                        }
+//                    } else {
+//                        times--
+//                        if (times < 0) times = 0
+//                    }
 
-                    cipherReadBuffer.flip()
-                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                    cipherReadBuffer.clear()
-                    plainWriteBuffer.flip()
-                    backEndSocketChannel.aWrite(plainWriteBuffer)
-                    plainWriteBuffer.clear()
+                    cipherReadBuffer.buffer.flip()
+                    readCipher.decrypt(cipherReadBuffer.buffer, plainWriteBuffer.buffer)
+                    cipherReadBuffer.buffer.clear()
+                    plainWriteBuffer.buffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
+                    plainWriteBuffer.buffer.clear()
                 }
+                
             } catch (e: AsynchronousCloseException) {
                 logger.warning("sslocal -> ss2socks -> China : connect reset by peer")
             } finally {
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 writeCipher.finish()
             }
@@ -354,46 +385,50 @@ class Server(private val ss2socks: Config.TopConfig) {
         // China -> ss2socks > sslocal
         logger.fine("start relay back to sslocal")
         async {
-            var bufferSize = defaultBufferSize
-            var times = 0
             var haveRead: Int
             try {
                 while (true) {
-                    haveRead = backEndSocketChannel.aRead(plainReadBuffer)
+                    haveRead = backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     if (haveRead <= 0) {
                         client.shutdownAll()
                         backEndSocketChannel.shutdownAll()
                         break
                     }
 
-                    if (haveRead == bufferSize) {
-                        if (times < 3) {
-                            times++
-                        } else {
-                            bufferSize *= 2
-                            plainReadBuffer.flip()
-                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
-                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
-                            times = 0
-                            logger.info("expend buffer size to $bufferSize")
-                        }
-                    } else {
-                        times--
-                        if (times < 0) times = 0
-                    }
+//                    if (haveRead == bufferSize) {
+//                        if (times < 3) {
+//                            times++
+//                        } else {
+//                            bufferSize *= 2
+//                            plainReadBuffer.flip()
+//                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
+//                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
+//                            times = 0
+//                            logger.info("expend buffer size to $bufferSize")
+//                        }
+//                    } else {
+//                        times--
+//                        if (times < 0) times = 0
+//                    }
 
-                    plainReadBuffer.flip()
-                    writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
-                    plainReadBuffer.clear()
-                    cipherWriteBuffer.flip()
-                    client.aWrite(cipherWriteBuffer)
-                    cipherWriteBuffer.clear()
+                    plainReadBuffer.buffer.flip()
+                    writeCipher.encrypt(plainReadBuffer.buffer, cipherWriteBuffer.buffer)
+                    plainReadBuffer.buffer.clear()
+                    cipherWriteBuffer.buffer.flip()
+                    client.aWrite(cipherWriteBuffer.buffer)
+                    cipherWriteBuffer.buffer.clear()
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("Cina -> ss2socks > sslocal : connect reset by peer")
             } finally {
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 writeCipher.finish()
             }
@@ -403,13 +438,13 @@ class Server(private val ss2socks: Config.TopConfig) {
     suspend private fun notChina(
             atyp: Int, addrLen: Int, addr: ByteArray, port: ByteArray,
             client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
-            rawCipherReadBuffer: ByteBuffer, rawPlainWriteBuffer: ByteBuffer, readCipher: Cipher,
-            rawPlainReadBuffer: ByteBuffer, rawCipherWriteBuffer: ByteBuffer) {
+            cipherReadBuffer: BufferPool.CustomBuffer, plainWriteBuffer: BufferPool.CustomBuffer, readCipher: Cipher,
+            plainReadBuffer: BufferPool.CustomBuffer, cipherWriteBuffer: BufferPool.CustomBuffer) {
 
-        var cipherReadBuffer = rawCipherReadBuffer
-        var plainWriteBuffer = rawPlainWriteBuffer
-        var plainReadBuffer = rawPlainReadBuffer
-        var cipherWriteBuffer = rawCipherWriteBuffer
+//        var cipherReadBuffer = cipherReadBuffer
+//        var plainWriteBuffer = plainWriteBuffer
+//        var plainReadBuffer = plainReadBuffer
+//        var cipherWriteBuffer = cipherWriteBuffer
 
         // connect to backEnd
         try {
@@ -418,33 +453,45 @@ class Server(private val ss2socks: Config.TopConfig) {
             client.shutdownAll()
             client.close()
             backEndSocketChannel.close()
+
+            cipherReadBuffer.release()
+            cipherWriteBuffer.release()
+            plainWriteBuffer.release()
+            plainReadBuffer.release()
+
             logger.warning("connect to backend: failed")
             return
         }
         logger.fine("connected to backend server")
 
         try {
-            plainWriteBuffer.put(byteArrayOf(5, 1, 0))
-            plainWriteBuffer.flip()
-            backEndSocketChannel.aWrite(plainWriteBuffer)
-            plainWriteBuffer.clear()
+            plainWriteBuffer.buffer.put(byteArrayOf(5, 1, 0))
+            plainWriteBuffer.buffer.flip()
+            backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
+            plainWriteBuffer.buffer.clear()
 
             var backEndCanRead = 0
 
             // read method
             while (backEndCanRead < 2) {
-                backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer.buffer)
             }
-            plainReadBuffer.flip()
+            plainReadBuffer.buffer.flip()
             val method = ByteArray(2)
-            plainReadBuffer.get(method)
+            plainReadBuffer.buffer.get(method)
 
-            plainReadBuffer.clear()
+            plainReadBuffer.buffer.clear()
 
             if (method[0].toInt() != 5) {
                 logger.warning("socks version is not 5")
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 return
             }
@@ -453,6 +500,12 @@ class Server(private val ss2socks: Config.TopConfig) {
                 logger.warning("auth is not No-auth")
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 return
             }
@@ -460,34 +513,40 @@ class Server(private val ss2socks: Config.TopConfig) {
             logger.fine("use no auth mode")
 
             // send request
-            plainWriteBuffer.put(byteArrayOf(5, 1, 0, atyp.toByte()))
+            plainWriteBuffer.buffer.put(byteArrayOf(5, 1, 0, atyp.toByte()))
 
-            if (atyp == 3) plainWriteBuffer.put(addrLen.toByte())
+            if (atyp == 3) plainWriteBuffer.buffer.put(addrLen.toByte())
 
-            plainWriteBuffer.put(addr)
-            plainWriteBuffer.put(port)
-            plainWriteBuffer.flip()
+            plainWriteBuffer.buffer.put(addr)
+            plainWriteBuffer.buffer.put(port)
+            plainWriteBuffer.buffer.flip()
 
-            backEndSocketChannel.aWrite(plainWriteBuffer)
+            backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
 
             // ready to relay
-            plainWriteBuffer.clear()
+            plainWriteBuffer.buffer.clear()
 
             // recv reply
             while (backEndCanRead < 2 + 4) {
-                backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer.buffer)
             }
-            plainReadBuffer.flip()
+            plainReadBuffer.buffer.flip()
 
             val repliesCheck = ByteArray(4)
-            plainReadBuffer.get(repliesCheck)
+            plainReadBuffer.buffer.get(repliesCheck)
 
-            plainReadBuffer.compact()
+            plainReadBuffer.buffer.compact()
 
             if (repliesCheck[1].toInt() != 0) {
                 logger.warning("rep is not 0")
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 return
             }
@@ -500,41 +559,41 @@ class Server(private val ss2socks: Config.TopConfig) {
             when (repliesCheck[3].toInt()) {
                 1 -> {
                     while (backEndCanRead < 2 + 4 + 6) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     }
-                    plainReadBuffer.flip()
-                    plainReadBuffer.get(bindAddr)
-                    plainReadBuffer.get(bindPort)
+                    plainReadBuffer.buffer.flip()
+                    plainReadBuffer.buffer.get(bindAddr)
+                    plainReadBuffer.buffer.get(bindPort)
                     logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
                 }
 
                 3 -> {
                     while (backEndCanRead < 2 + 4 + 1) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     }
-                    plainReadBuffer.flip()
-                    val bindAddrLen = plainReadBuffer.get().toInt()
+                    plainReadBuffer.buffer.flip()
+                    val bindAddrLen = plainReadBuffer.buffer.get().toInt()
                     logger.fine("bind addr length: $bindAddr")
-                    plainReadBuffer.compact()
+                    plainReadBuffer.buffer.compact()
 
                     while (backEndCanRead < 2 + 4 + 1 + bindAddrLen + 2) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     }
-                    plainReadBuffer.flip()
+                    plainReadBuffer.buffer.flip()
                     bindAddr = ByteArray(bindAddrLen)
-                    plainReadBuffer.get(bindAddr)
-                    plainReadBuffer.get(bindPort)
+                    plainReadBuffer.buffer.get(bindAddr)
+                    plainReadBuffer.buffer.get(bindPort)
                     logger.fine("bind addr: ${String(bindAddr)}, TCPPort: ${GetPort(bindPort)}")
                 }
 
                 4 -> {
                     while (backEndCanRead < 2 + 4 + 16 + 2) {
-                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer)
+                        backEndCanRead += backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     }
-                    plainReadBuffer.flip()
+                    plainReadBuffer.buffer.flip()
                     bindAddr = ByteArray(16)
-                    plainReadBuffer.get(bindAddr)
-                    plainReadBuffer.get(bindPort)
+                    plainReadBuffer.buffer.get(bindAddr)
+                    plainReadBuffer.buffer.get(bindPort)
                     logger.fine("bind addr: ${InetAddress.getByAddress(bindAddr).hostAddress}, TCPPort: ${GetPort(bindPort)}")
                 }
 
@@ -542,6 +601,12 @@ class Server(private val ss2socks: Config.TopConfig) {
                     logger.warning("other atyp we don't know")
                     client.close()
                     backEndSocketChannel.close()
+
+                    cipherReadBuffer.release()
+                    cipherWriteBuffer.release()
+                    plainWriteBuffer.release()
+                    plainReadBuffer.release()
+
                     readCipher.finish()
                     return
                 }
@@ -550,6 +615,12 @@ class Server(private val ss2socks: Config.TopConfig) {
             client.shutdownAll()
             client.close()
             backEndSocketChannel.close()
+
+            cipherReadBuffer.release()
+            cipherWriteBuffer.release()
+            plainWriteBuffer.release()
+            plainReadBuffer.release()
+
             logger.warning("handshake with backend: failed")
             return
         }
@@ -558,72 +629,76 @@ class Server(private val ss2socks: Config.TopConfig) {
 //        val writeIv = writeCipher.getIVorNonce()!!
 
         // ready to relay
-        plainReadBuffer.clear()
+        plainReadBuffer.buffer.clear()
 
         // send IV of ss2socks -> sslocal
-        cipherWriteBuffer.put(writeCipher.getIVorNonce())
-        cipherWriteBuffer.flip()
+        cipherWriteBuffer.buffer.put(writeCipher.getIVorNonce())
+        cipherWriteBuffer.buffer.flip()
 
         try {
-            client.aWrite(cipherWriteBuffer)
+            client.aWrite(cipherWriteBuffer.buffer)
         } catch (e: AsynchronousCloseException) {
             client.close()
             backEndSocketChannel.shutdownAll()
             backEndSocketChannel.close()
+
+            cipherReadBuffer.release()
+            cipherWriteBuffer.release()
+            plainWriteBuffer.release()
+            plainReadBuffer.release()
+
             logger.warning("send writeIV: failed")
             return
         }
 
         // ready to relay
-        cipherWriteBuffer.clear()
+        cipherWriteBuffer.buffer.clear()
 
         // sslocal -> ss2socks -> backEnd
         logger.fine("start relay to backEnd")
         async {
-            var bufferSize = defaultBufferSize
-            var times = 0
             var haveRead: Int
             try {
-                if (cipherReadBuffer.position() != 0) {
-                    cipherReadBuffer.flip()
-                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                    cipherReadBuffer.clear()
-                    plainWriteBuffer.flip()
-                    backEndSocketChannel.aWrite(plainWriteBuffer)
-                    plainWriteBuffer.clear()
+                if (cipherReadBuffer.buffer.position() != 0) {
+                    cipherReadBuffer.buffer.flip()
+                    readCipher.decrypt(cipherReadBuffer.buffer, plainWriteBuffer.buffer)
+                    cipherReadBuffer.buffer.clear()
+                    plainWriteBuffer.buffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
+                    plainWriteBuffer.buffer.clear()
                 }
 
                 while (true) {
-                    haveRead = client.aRead(cipherReadBuffer)
+                    haveRead = client.aRead(cipherReadBuffer.buffer)
                     if (haveRead <= 0) {
                         client.shutdownAll()
                         backEndSocketChannel.shutdownAll()
                         break
                     }
 
-                    // expend buffer size
-                    if (haveRead == bufferSize) {
-                        if (times < 2) {
-                            times++
-                        } else {
-                            bufferSize *= 2
-                            cipherReadBuffer.flip()
-                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
-                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
-                            times = 0
-                            logger.info("expend buffer size to $bufferSize")
-                        }
-                    } else {
-                        times--
-                        if (times < 0) times = 0
-                    }
+//                    // expend buffer size
+//                    if (haveRead == bufferSize) {
+//                        if (times < 2) {
+//                            times++
+//                        } else {
+//                            bufferSize *= 2
+//                            cipherReadBuffer.flip()
+//                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
+//                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
+//                            times = 0
+//                            logger.info("expend buffer size to $bufferSize")
+//                        }
+//                    } else {
+//                        times--
+//                        if (times < 0) times = 0
+//                    }
 
-                    cipherReadBuffer.flip()
-                    readCipher.decrypt(cipherReadBuffer, plainWriteBuffer)
-                    cipherReadBuffer.clear()
-                    plainWriteBuffer.flip()
-                    backEndSocketChannel.aWrite(plainWriteBuffer)
-                    plainWriteBuffer.clear()
+                    cipherReadBuffer.buffer.flip()
+                    readCipher.decrypt(cipherReadBuffer.buffer, plainWriteBuffer.buffer)
+                    cipherReadBuffer.buffer.clear()
+                    plainWriteBuffer.buffer.flip()
+                    backEndSocketChannel.aWrite(plainWriteBuffer.buffer)
+                    plainWriteBuffer.buffer.clear()
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("sslocal -> ss2socks -> backEnd : connect reset by peer")
@@ -631,6 +706,12 @@ class Server(private val ss2socks: Config.TopConfig) {
             } finally {
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 writeCipher.finish()
             }
@@ -639,40 +720,38 @@ class Server(private val ss2socks: Config.TopConfig) {
         // backEnd -> ss2socks > sslocal
         logger.fine("start relay back to sslocal")
         async {
-            var bufferSize = defaultBufferSize
-            var times = 0
             var haveRead: Int
             try {
                 while (true) {
-                    haveRead = backEndSocketChannel.aRead(plainReadBuffer)
+                    haveRead = backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     if (haveRead <= 0) {
                         client.shutdownAll()
                         backEndSocketChannel.shutdownAll()
                         break
                     }
 
-                    if (haveRead == bufferSize) {
-                        if (times < 3) {
-                            times++
-                        } else {
-                            bufferSize *= 2
-                            plainReadBuffer.flip()
-                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
-                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
-                            times = 0
-                            logger.info("expend buffer size to $bufferSize")
-                        }
-                    } else {
-                        times--
-                        if (times < 0) times = 0
-                    }
+//                    if (haveRead == bufferSize) {
+//                        if (times < 3) {
+//                            times++
+//                        } else {
+//                            bufferSize *= 2
+//                            plainReadBuffer.flip()
+//                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
+//                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
+//                            times = 0
+//                            logger.info("expend buffer size to $bufferSize")
+//                        }
+//                    } else {
+//                        times--
+//                        if (times < 0) times = 0
+//                    }
 
-                    plainReadBuffer.flip()
-                    writeCipher.encrypt(plainReadBuffer, cipherWriteBuffer)
-                    plainReadBuffer.clear()
-                    cipherWriteBuffer.flip()
-                    client.aWrite(cipherWriteBuffer)
-                    cipherWriteBuffer.clear()
+                    plainReadBuffer.buffer.flip()
+                    writeCipher.encrypt(plainReadBuffer.buffer, cipherWriteBuffer.buffer)
+                    plainReadBuffer.buffer.clear()
+                    cipherWriteBuffer.buffer.flip()
+                    client.aWrite(cipherWriteBuffer.buffer)
+                    cipherWriteBuffer.buffer.clear()
                 }
             } catch (e: AsynchronousCloseException) {
                 logger.warning("backEnd -> ss2socks > sslocal : connect reset by peer")
@@ -680,6 +759,12 @@ class Server(private val ss2socks: Config.TopConfig) {
             } finally {
                 client.close()
                 backEndSocketChannel.close()
+
+                cipherReadBuffer.release()
+                cipherWriteBuffer.release()
+                plainWriteBuffer.release()
+                plainReadBuffer.release()
+
                 readCipher.finish()
                 writeCipher.finish()
             }
