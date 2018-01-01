@@ -15,16 +15,25 @@ class BufferPool(private val bufferSize: Int = 8192, initPoolSize: Int = 100) {
         return if (bufferQueue.isEmpty) {
             logger.info("buffer pool is not enough, create a new buffer")
             bufferQueue.offer(CustomBuffer(bufferSize))
-            bufferQueue.poll()!!
-        } else bufferQueue.poll()!!
+            bufferQueue.poll()!!.outQueue()
+        } else bufferQueue.poll()!!.outQueue()
     }
 
     inner class CustomBuffer(size: Int) {
         val buffer = ByteBuffer.allocateDirect(size)!!
+        private var inQueue: Boolean = false
 
         fun release() {
-            buffer.clear()
-            bufferQueue.offer(this)
+            if (!inQueue) {
+                buffer.clear()
+                bufferQueue.offer(this)
+                inQueue = true
+            }
+        }
+
+        fun outQueue(): CustomBuffer {
+            inQueue = false
+            return this
         }
     }
 }
