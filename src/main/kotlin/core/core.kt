@@ -60,17 +60,14 @@ class Server(private val ss2socks: Config.TopConfig) {
     }
 
     suspend private fun handle(client: AsynchronousSocketChannel) {
-//        val cipherReadBuffer = ByteBuffer.allocate(defaultBufferSize)
-//        val cipherWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-//        val plainWriteBuffer = ByteBuffer.allocate(defaultBufferSize)
-//        val plainReadBuffer = ByteBuffer.allocate(defaultBufferSize)
-
         val cipherReadBuffer = bufferPool.get()
         val cipherWriteBuffer = bufferPool.get()
         val plainWriteBuffer = bufferPool.get()
         val plainReadBuffer = bufferPool.get()
 
         val backEndSocketChannel = AsynchronousSocketChannel.open()
+        backEndSocketChannel.setOption(StandardSocketOptions.TCP_NODELAY, true)
+        backEndSocketChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, true)
 
         val readCipher: Cipher
 
@@ -269,10 +266,7 @@ class Server(private val ss2socks: Config.TopConfig) {
             addr: ByteArray, port: ByteArray, client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
             cipherReadBuffer: BufferPool.CustomBuffer, plainWriteBuffer: BufferPool.CustomBuffer,
             readCipher: Cipher, plainReadBuffer: BufferPool.CustomBuffer, cipherWriteBuffer: BufferPool.CustomBuffer) {
-//        var cipherReadBuffer = cipherReadBuffer
-//        var plainWriteBuffer = plainWriteBuffer
-//        var plainReadBuffer = plainReadBuffer
-//        var cipherWriteBuffer = cipherWriteBuffer
+
         val writeCipher = Cipher(key, cipherMode = ss2socks.security.cipherMode)
 
         // connect to China server
@@ -341,23 +335,6 @@ class Server(private val ss2socks: Config.TopConfig) {
                         break
                     }
 
-//                    // expend buffer size
-//                    if (haveRead == bufferSize) {
-//                        if (times < 2) {
-//                            times++
-//                        } else {
-//                            bufferSize *= 2
-//                            cipherReadBuffer.flip()
-//                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
-//                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
-//                            times = 0
-//                            logger.info("expend buffer size to $bufferSize")
-//                        }
-//                    } else {
-//                        times--
-//                        if (times < 0) times = 0
-//                    }
-
                     cipherReadBuffer.buffer.flip()
                     readCipher.decrypt(cipherReadBuffer.buffer, plainWriteBuffer.buffer)
                     cipherReadBuffer.buffer.clear()
@@ -395,22 +372,6 @@ class Server(private val ss2socks: Config.TopConfig) {
                         break
                     }
 
-//                    if (haveRead == bufferSize) {
-//                        if (times < 3) {
-//                            times++
-//                        } else {
-//                            bufferSize *= 2
-//                            plainReadBuffer.flip()
-//                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
-//                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
-//                            times = 0
-//                            logger.info("expend buffer size to $bufferSize")
-//                        }
-//                    } else {
-//                        times--
-//                        if (times < 0) times = 0
-//                    }
-
                     plainReadBuffer.buffer.flip()
                     writeCipher.encrypt(plainReadBuffer.buffer, cipherWriteBuffer.buffer)
                     plainReadBuffer.buffer.clear()
@@ -440,11 +401,6 @@ class Server(private val ss2socks: Config.TopConfig) {
             client: AsynchronousSocketChannel, backEndSocketChannel: AsynchronousSocketChannel,
             cipherReadBuffer: BufferPool.CustomBuffer, plainWriteBuffer: BufferPool.CustomBuffer, readCipher: Cipher,
             plainReadBuffer: BufferPool.CustomBuffer, cipherWriteBuffer: BufferPool.CustomBuffer) {
-
-//        var cipherReadBuffer = cipherReadBuffer
-//        var plainWriteBuffer = plainWriteBuffer
-//        var plainReadBuffer = plainReadBuffer
-//        var cipherWriteBuffer = cipherWriteBuffer
 
         // connect to backEnd
         try {
@@ -626,7 +582,6 @@ class Server(private val ss2socks: Config.TopConfig) {
         }
 
         val writeCipher = Cipher(key, cipherMode = ss2socks.security.cipherMode)
-//        val writeIv = writeCipher.getIVorNonce()!!
 
         // ready to relay
         plainReadBuffer.buffer.clear()
@@ -676,23 +631,6 @@ class Server(private val ss2socks: Config.TopConfig) {
                         break
                     }
 
-//                    // expend buffer size
-//                    if (haveRead == bufferSize) {
-//                        if (times < 2) {
-//                            times++
-//                        } else {
-//                            bufferSize *= 2
-//                            cipherReadBuffer.flip()
-//                            cipherReadBuffer = ByteBuffer.allocate(bufferSize).put(cipherReadBuffer)
-//                            plainWriteBuffer = ByteBuffer.allocate(bufferSize)
-//                            times = 0
-//                            logger.info("expend buffer size to $bufferSize")
-//                        }
-//                    } else {
-//                        times--
-//                        if (times < 0) times = 0
-//                    }
-
                     cipherReadBuffer.buffer.flip()
                     readCipher.decrypt(cipherReadBuffer.buffer, plainWriteBuffer.buffer)
                     cipherReadBuffer.buffer.clear()
@@ -729,22 +667,6 @@ class Server(private val ss2socks: Config.TopConfig) {
                         backEndSocketChannel.shutdownAll()
                         break
                     }
-
-//                    if (haveRead == bufferSize) {
-//                        if (times < 3) {
-//                            times++
-//                        } else {
-//                            bufferSize *= 2
-//                            plainReadBuffer.flip()
-//                            plainReadBuffer = ByteBuffer.allocate(bufferSize).put(plainReadBuffer)
-//                            cipherWriteBuffer = ByteBuffer.allocate(bufferSize)
-//                            times = 0
-//                            logger.info("expend buffer size to $bufferSize")
-//                        }
-//                    } else {
-//                        times--
-//                        if (times < 0) times = 0
-//                    }
 
                     plainReadBuffer.buffer.flip()
                     writeCipher.encrypt(plainReadBuffer.buffer, cipherWriteBuffer.buffer)
