@@ -134,7 +134,7 @@ class Server(private val ss2socks: Config.TopConfig) {
                     addrLen = rawAddrLen[0].toInt() and 0xFF
                     logger.fine("addr len: $addrLen")
 
-                    while (ssCanRead < 17 + 1 + addrLen) {
+                    while (ssCanRead < 17 + 1 + addrLen + 2) {
                         ssCanRead += client.aRead(cipherReadBuffer.buffer)
                     }
                     cipherReadBuffer.buffer.flip()
