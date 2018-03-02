@@ -6,7 +6,6 @@ import kotlinx.coroutines.experimental.nio.aConnect
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
-import libs.AsynchronousSocketChannel.shutdownAll
 import libs.TCPPort.GetPort
 import libs.bufferPool.BufferPool
 import libs.config.Config
@@ -166,8 +165,6 @@ class Server(private val ss2socks: Config.TopConfig) {
 
                 else -> {
                     logger.warning("error atyp")
-                    client.shutdownAll()
-                    backEndSocketChannel.shutdownAll()
                     client.close()
                     backEndSocketChannel.close()
 
@@ -273,7 +270,6 @@ class Server(private val ss2socks: Config.TopConfig) {
         try {
             backEndSocketChannel.aConnect(InetSocketAddress(InetAddress.getByAddress(addr), GetPort(port)))
         } catch (e: AsynchronousCloseException) {
-            client.shutdownAll()
             client.close()
             backEndSocketChannel.close()
 
@@ -298,7 +294,6 @@ class Server(private val ss2socks: Config.TopConfig) {
             client.aWrite(cipherWriteBuffer.buffer)
         } catch (e: AsynchronousCloseException) {
             client.close()
-            backEndSocketChannel.shutdownAll()
             backEndSocketChannel.close()
 
             cipherReadBuffer.release()
@@ -330,8 +325,8 @@ class Server(private val ss2socks: Config.TopConfig) {
                 while (true) {
                     haveRead = client.aRead(cipherReadBuffer.buffer)
                     if (haveRead <= 0) {
-                        client.shutdownAll()
-                        backEndSocketChannel.shutdownAll()
+                        client.shutdownInput()
+                        backEndSocketChannel.shutdownOutput()
                         break
                     }
 
@@ -367,8 +362,8 @@ class Server(private val ss2socks: Config.TopConfig) {
                 while (true) {
                     haveRead = backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     if (haveRead <= 0) {
-                        client.shutdownAll()
-                        backEndSocketChannel.shutdownAll()
+                        backEndSocketChannel.shutdownInput()
+                        client.shutdownOutput()
                         break
                     }
 
@@ -406,7 +401,6 @@ class Server(private val ss2socks: Config.TopConfig) {
         try {
             backEndSocketChannel.aConnect(InetSocketAddress(backEndAddr, backEndPort))
         } catch (e: AsynchronousCloseException) {
-            client.shutdownAll()
             client.close()
             backEndSocketChannel.close()
 
@@ -568,7 +562,6 @@ class Server(private val ss2socks: Config.TopConfig) {
                 }
             }
         } catch (e: AsynchronousCloseException) {
-            client.shutdownAll()
             client.close()
             backEndSocketChannel.close()
 
@@ -594,7 +587,6 @@ class Server(private val ss2socks: Config.TopConfig) {
             client.aWrite(cipherWriteBuffer.buffer)
         } catch (e: AsynchronousCloseException) {
             client.close()
-            backEndSocketChannel.shutdownAll()
             backEndSocketChannel.close()
 
             cipherReadBuffer.release()
@@ -626,8 +618,10 @@ class Server(private val ss2socks: Config.TopConfig) {
                 while (true) {
                     haveRead = client.aRead(cipherReadBuffer.buffer)
                     if (haveRead <= 0) {
-                        client.shutdownAll()
-                        backEndSocketChannel.shutdownAll()
+//                        client.shutdownAll()
+//                        backEndSocketChannel.shutdownAll()
+                        client.shutdownInput()
+                        backEndSocketChannel.shutdownOutput()
                         break
                     }
 
@@ -663,8 +657,8 @@ class Server(private val ss2socks: Config.TopConfig) {
                 while (true) {
                     haveRead = backEndSocketChannel.aRead(plainReadBuffer.buffer)
                     if (haveRead <= 0) {
-                        client.shutdownAll()
-                        backEndSocketChannel.shutdownAll()
+                        backEndSocketChannel.shutdownInput()
+                        client.shutdownOutput()
                         break
                     }
 
