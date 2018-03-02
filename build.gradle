@@ -1,8 +1,8 @@
 group 'ss2socks'
-version '0.6'
+version '0.7'
 
 buildscript {
-    ext.kotlin_version = '1.2.10'
+    ext.kotlin_version = '1.2.30'
 
     repositories {
         mavenCentral()
@@ -14,17 +14,15 @@ buildscript {
 
 apply plugin: 'kotlin'
 
-sourceCompatibility = 1.8
-
 repositories {
     mavenCentral()
     jcenter()
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.21'
-    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.21'
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.3'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.22.3'
     compile 'com.maxmind.geoip2:geoip2:2.10.0'
     compile 'com.moandjiezana.toml:toml4j:0.7.2'
 
@@ -36,4 +34,10 @@ compileKotlin {
 }
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
 }
